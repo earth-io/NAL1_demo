@@ -763,87 +763,67 @@ setInterval(connectionTable_render,1000);
 
 </script>
 <pre>
+DOCs
+
 github  earth.org
+	https://nodejs.org/en/docs/guides/getting-started-guide/
+	nodejs.org/en/docs/guides/anatomy-of-an-http-transaction/  // Anatomy of an HTTP Transaction
+	https://socket.io/get-started/chat  //  uses express
+	https://nodejs.org/api/stream.html#stream_types_of_streams
+		'Almost all Node.js applications, no matter how simple, use streams in some manner.'
 
-jgs: dir  server client
+node/web server   // emulation of h/w  
+  objects:
+		cells     // referenced by a uuid,  
+		links     // referenced by [cell1.uuid,cell1.port,cell2.uuid,cell2.port]
+		tree      // referenced by the root cell's uuid
+			branch  // referenced by tree and link
+  
+  make(n,m) wires up using an agreed topology:
+		each cell should be given a 'nice' value to k
+		cell will be positioned using k according to the following scheme.:
 
-topology assumption for grid
-k=1     2
-  o-----o
-  | \ / |
-  |  x  | 
-  | / \ |
-  o-----o  
-  3     4
+		k=1  2
+			o--o
+			|\/|
+			|/\|
+			o--o  
+			3   4
  
-ports
+		ports
 
-jgs:
-     5  1  4
-      \ | /
-    2 - + - 0
-      / | \
-     6  3  7 
+		jgs:
+				 5  1  4
+					\ | /
+				2 - + - 0
+					/ | \
+				 6  3  7 
 
-paul    
-     8  1  2
-      \ | /
-    7 - 0 - 3
-      / | \
-     6  5  4      
-
-
-node/web server   // emulation of h/w
-         wires up using an agreed topology 
-            turns things on
-         link failure
-         tbd: cell failure
-         makes and repairs trees   
-         zzzz cell.states: on/off   link.states: on/off
+		paul:   
+				 8  1  2
+					\ | /
+				7 - 0 - 3
+					/ | \
+				 6  5  4           
+         
+         
+	turn on cells and links  // link can only turn on when cells on both ends are on
+	link failure  // tbd: cell failure
+	makes and repairs trees   ***** the only logic we have to implement
+	cells and links states are on/off; when off they are 'missing'
          
 client/browser            caches and replays events
-         getCells,getLinks,getTrees, 
-         cmnds: { make(n,m), killLink(t), subscribe(cell,link,tree), }
-  
-  
-  
+	getCells,getLinks,getTrees,   // Gregory: these must be received in order zzz
+	cmnds: { make(n,m), killLink(t), subscribe(cell,link,tree), }
 
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-         
-=========================
-
-common
-Cell  k
-Link  k1,p1,k2,p2
-del cell  k 
-del link  k1,p1,k2,p2
-cell.state
-link.state 
-tree  k  (root)
-
-hiliteTree
-
-
-Cell.sgate   *unplaced,placed,on
-Link.state   *unplaced connected1 connected2 placed on  // on trigger discover
+========================= code snippets form prev version of code:
+ Cell.state   *unplaced,placed,on
+ Link.state   *unplaced connected1 connected2 placed on  // on trigger discover
   
 triggerDiscover belongs on server
 
-
 var showTrees =(dt)=> $.map(cells,(d,k)=> setTimeout(()=> hiliteTree(k),k*dt) );
 var treeCounts=()=> $.map(cells,(d,k)=> console.log(k,$.map(d.trees,(d,k)=> k).length) );
-
 
 var renderLinks=(svg)=> $.map(links,(d,k)=> $('#toplayer').append( d.view       ) );
 
@@ -858,5 +838,5 @@ var attempt=(__,dt)=> paused ?  50 : (random(ops)() ?  DT : 0) ;  // I could inl
 var more=()=> setTimeout(more,attempt()); 
 
 tbd:
- timeline and spaceout
+ 8 ports; separate out code; timeline and spaceout
 </pre>
