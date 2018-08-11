@@ -106,6 +106,33 @@ Paul  aug 09 2018  tree repair
 
 trees have a port# to help with healing
 
-gregory: 
+algorithm  tree building  aug 10 2018 w/ paul
+
+cell
+  guid:
+  hashedguid:hash(this.guid)  // keeps the cell.guid private
+  agent:         // ca cell agent
+  ports:[0..9]   // port 0 is used by agent
+  rt:{           // routingTable
+    hashedguid+0:Tree() 
+  }       
+
+event:  
+  when a link tells a port // this port is the 'rootport'
+    that both ends of the link have been connected to cells that are on:
+    
+    cell.port.send('discover',hashedguid,port,/* hc = */ 0)
+    
+send 'forward' out  
+    
+
+
+
+future or promise 
+
+
+portVectors
+
+
 
 
