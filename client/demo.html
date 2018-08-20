@@ -5,12 +5,13 @@
 <script src='server.js'></script>
 <style>
 *                     { margin: 0;  padding: 0;  outline: none;  box-sizing: border-box; }
-body                  { background: #AAAAAA; margin-top:50; }
+body                  { background: 'white'; margin-top:50; }
 button                { font: 20px system-ui; margin:5px;}
 #content              { position:relative;  margin-top:2px;  margin-left: 5%; }
 .abs                  { position:absolute; }
 .fresh.cellBackground { fill:blue;  }
 </style>
+
 <!--
 <pre>
 stack11 click a cell to get info
@@ -74,7 +75,7 @@ print maxCnt as it increases
   <td valign="top"><div id="panel"  ></div></td>
  </tr>
 </table>
-<script>
+<script>$('body').css('background','#DDDDDD');
 /*
 stackoverflow.com/questions/424292/seedable-javascript-random-number-generator
 stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
@@ -297,8 +298,10 @@ var renderedCells={};
 
 var cell_observers={  
   update:(cell)=>{
+  return;
     $('.cell_'+cell.id).attr(cell.attr[cell.state]);  // JJJJ  
     
+    // return
     $.map(cell.trees,(tree)=>{ // we must go over all properties since update doesnt say what changed
     //  $.map($('.tile svg'),(d,k,__,tile)=>{  DDDD
       //if($('#tile'+k+'.cellBackground.cell'+tree.id).length==0){ // slows things to crawl
@@ -330,6 +333,7 @@ var cell_observers={
 
 var link_observers={  
   update:(link,treeID,op,data)=>{
+  return;
     if(op=='hilitePropagation'){ // data is {cell1:, port1:, cell2:, port2:, tree: ,cnt: }
       $('#base'+2).append(
         $(SVGnode('line'))
@@ -496,7 +500,7 @@ $(document).ready(function(__,svg,base1,base2){
   renderCells(topLayer);
   renderLinks(topLayer);
   
-  stdView();
+  tile(); // stdView();
   $.map($('.tile'),(d,k)=> $(d).css({'z-index':3000-k}));
   
   var defs = $(svg[0]).append($(SVGnode('defs')));  // used for making markers
@@ -537,7 +541,7 @@ var connectionTable_render=(__,sz)=>{
     );
   })
 };
-setInterval(connectionTable_render,1000);
+//setInterval(connectionTable_render,1000);
 
 
 </script>

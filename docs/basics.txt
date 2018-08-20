@@ -102,37 +102,120 @@ client/browser            caches and replays events
   getCells,getLinks,getTrees,   // Gregory: these must be received in order zzz
   cmnds: { make(n,m), killLink(t), subscribe(cell,link,tree), }
 
-Paul  aug 09 2018  tree repair
-
-trees have a port# to help with healing
-
-algorithm  tree building  aug 10 2018 w/ paul
-
-cell
-  guid:
-  hashedguid:hash(this.guid)  // keeps the cell.guid private
-  agent:         // ca cell agent
-  ports:[0..9]   // port 0 is used by agent
-  rt:{           // routingTable
-    hashedguid+0:Tree() 
-  }       
-
-event:  
-  when a link tells a port // this port is the 'rootport'
-    that both ends of the link have been connected to cells that are on:
-    
-    cell.port.send('discover',hashedguid,port,/* hc = */ 0)
-    
-send 'forward' out  
-    
 
 
 
-future or promise 
+www.cressfuneralservice.com/obituary/252799/Linda-Garnett/ linda s garnett lohr apr 10 2018
+============================================= tree building and repair algorithm
+algorithm   aug 10 2018 w/ paul
+ file:///Users/johngslater/Downloads/Simple.pdf
+ 
+a link will get msgs from a port and send them to the other side of the link
+
+var Port=function(cell,__,self){   // tbd
+  self={
+    cell:cell
+    discover:(treeid,hc,inport,linkIsActive)=>{  // BuildTree on Child Cell:
+			if(treeid not in RoutingTable){
+				EnterInRoutingTable(treeid,hc+1,inport,portvector=[]) -- marks inport as rootward for this tree
+				linkIsActive(myport)   // what is myPort ??
+				forward(treeid, hc+1) on all ports != inport -- in parallel
+			}
+			else{
+				AddToPortVector{treeid,hc,inport) -- vector of pruned links, in order of arrival of packet
+				send pruned(treeid,hc,inport) -- Informs neighbor cell this link is inactive (for this tree)
+			}
+		},
+		discoverD:()=>{ // done once, not recursive
+		  verify that link is live
+		
+		},
+  }
+  return self;
+};
+
+var Cell=function(__,buildCellTree,buildPortTreeReq){
+	buildPortTreeReq=(port,treeid,processDiscoverD,__,buildPortTree)=>{
+		buildPortTree=()=>{
+			// this link is active (for this tree)
+			port.send('discover',treeid,0,/* linkIsActive */(myport)=> zzz...) //  hc is 0;  GGGG // link forwards
+		}
+		if port active
+			buildPortTree()
+		else
+			when port becomes active buildPortTree() 
+	}
+
+	var buildCellTree=function(mytreeid){
+	//NewRoutingTable(mytreeid)
+		self.ports.map((port,k)=> buildPortTreeReq(port,mytreeid+k,processDiscoverD)) // are promises
+		CellTree(port0) = Merge of PortTree promises  // used by healing
+	}
+	
+  var self={
+		guid:System.guid(),
+		agent: , 
+		routingTable:{}, contains an entry for every treeid, including its own (first entry ZZZ NO!!).
+		ports:[...Array(n).keys()].map((p)=> Port(self)), // 9 ports // 8 physical and on port ('0') used by agent
+  }
+  
+  self.routingTable.add(mytreeid) zzzz
+  buildCellTree(hash(self.guid));
+  
+  return self;
+}
+  
+BuildTree for Root Cell:  zzz what does this mean ?
 
 
-portVectors
 
 
 
 
+
+
+
+
+
+RepairTree for Child Cell:
+
+ON receive LinkDown(port)
+	LOG(LinkDown,RoutingTableEntry)
+	CASE
+		[port = pruned] DisablePortVector(treeid,hc,inport)
+		[port = child] DisablePortVector(treeid,hc,inport)
+		[port = rootward]
+			TRY HealTree1 -- Heal to RootWard cell (RW) via pruned port
+				IF fail() TRY HealTree2 -- Heal to RootWard cell (RW) via Child port
+				  IF fail() TRY HealTree3 -- Heal to Root via shortest path on this PortTree
+				    IF fail() TRY HealTree4 -- Heal to Root via shortest path on alternate PortTree
+		          IF fail() LOG(TotalTreeFailure, mycellid, RoutingTableEntry);
+	ENDCASE
+	LOG(TreeFailover,RoutingTableEntry)
+
+
+FUNCTION HealTree1 -- Heal to RootWard cell (RW) via pruned port on this PortTree
+	FOR (i in 0..8)
+	  SWAP Portvector[i], Portvector[i+1] -- go through PortVector and put 2nd entry first (now new RW Port)
+	ENDFOR
+	Send discoverd(treeid, PortVector[(0)]) -- Informs new RW cell this link is now active (for this tree)
+	forward(treeid, hc) on all remaining child ports -- inform all descendent cells of new hc for this tree
+	LOG(RootwardLocalTreeFailover, mycellid, Routing Table Entry)
+
+FUNCTION HealTree2 -- -- Heal to RootWard cell (RW) via Child port on this PortTree
+	Recursive Algorithm through depth-first search on each child link to RootWard Cell on this PortTree
+	(TBD)
+	forward(treeid, hc) on all remaining child ports -- inform all descendent cells of new hc for this tree
+	LOG(RootwardChildFailover, mycellid, Routing Table Entry)
+
+FUNCTION HealTree3 -- Heal to Root Cell via shortest path on this PortTree
+	Recursive Algorithm through depth-first search on each child link to alternate PortTree
+	(TBD)
+	forward(treeid, hc) on all remaining child ports -- inform all descendent cells of new hc for this tree
+	LOG(RootFailover, mycellid, Routing Table Entry)
+
+FUNCTION HealTree4 -- Heal to Root Cell via shortest path on alternate PortTree
+	Recursive Algorithm through depth-first search on each child link to alternate PortTree
+	(TBD)
+	forward(treeid, hc) on all remaining child ports -- inform all descendent cells of new hc for this tree
+	LOG(RootFailoverToPortTree, Routing Table Entry)

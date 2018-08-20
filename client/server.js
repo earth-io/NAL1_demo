@@ -2,10 +2,7 @@ var cells=[],cellHash={}, hashCell=(cell)=> cellHash[row(cell.k)+'_'+col(cell.k)
 var getCell= (row,col)=> cellHash[row+'_'+col];
 var links=[],linkHash={}; 
 var linkID=(c1,p1,c2,p2)=> (c1.id<c2.id) ? c1.id+'_'+p1+'_'+c2.id+'_'+p2 : c2.id+'_'+p2+'_'+c1.id+'_'+p1;
-
-// configureDataCenter defined col&row
-var row; // col(k)=> Math.floor(k/nCol);
-var col; // row(k)=> k%nCol;
+var nRow,nCol;
 /* 
 	 8  1  2
 		\ | /
@@ -16,30 +13,34 @@ var col; // row(k)=> k%nCol;
  p2=(p1)=>  p1<5 ? p1+4 : p1-4;
  d3.range(0,9).map(p2)  // [4, 5, 6, 7, 8, 1, 2, 3, 4]  note: we never call p2 w/ 0
 */
-var configureLinks= (cells)=> {
-  $.map(cells,(c1,__,c2,mkLinkWhenDoesNotExist)=> { 
-    mkLinkWhenDoesNotExist= (c1,p1,c2,__,p2=(p1)=>  p1<5 ? p1+4 : p1-4,lid,link)=>{ 
-      lid=linkID(c1,p1,c2,p2(p1));
-      if(linkHash[lid]==undefined){ 
-        link=Link(c1,p1,c2,p2(p1)); 
-        links.push(link); 
-        linkHash[lid]=link;
-      } 
-    };
-    // for ea port: find its potential neighbor cell; make a link if it does not already exist
-    if(c2=getCell(row(c1.k)+0,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,3,c2); } // right
-    if(c2=getCell(row(c1.k)-1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,1,c2); } // above
-    if(c2=getCell(row(c1.k)+0,col(c1.k)-1)){ mkLinkWhenDoesNotExist(c1,7,c2); } // left
-    if(c2=getCell(row(c1.k)+1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,5,c2); } // below
-    if(c2=getCell(row(c1.k)+1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,4,c2); } // bot rt   diag
-    if(c2=getCell(row(c1.k)-1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,2,c2); } // top left diag
-  });
-};
 
-var configureDataCenter=(nCol,nRow)=>{  // API
-  col= (k)=> k%nCol;
-  row= (k)=> Math.floor(k/nCol);
-  $.map(d3.range(nCol*nRow),(d,k)=> cells.push(Cell(k)) );
+// configureDataCenter defines col&row
+var row; // col(k)=> Math.floor(k/nCol);
+var col; // row(k)=> k%nCol;
+var configureDataCenter=(nCol=nCol_,nRow=nRow_,__,configureLinks)=>{  // API
+  col= (k)=> k%nCol;              // GLOBAL, used by view
+  row= (k)=> Math.floor(k/nCol);  // GLOBAL
+  configureLinks= (cells)=> {
+		$.map(cells,(c1,__,c2,mkLinkWhenDoesNotExist)=> { 
+			mkLinkWhenDoesNotExist= (c1,p1,c2,__,p2=(p1)=>  p1<5 ? p1+4 : p1-4,lid,link)=>{ 
+				lid=linkID(c1,p1,c2,p2(p1));
+				if(linkHash[lid]==undefined){ 
+					link=Link(c1,p1,c2,p2(p1)); 
+					links.push(link); 
+					linkHash[lid]=link;
+				} 
+			};
+			// for ea port: find its potential neighbor cell; make a link if it does not already exist
+			if(c2=getCell(row(c1.k)+0,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,3,c2); } // right
+			if(c2=getCell(row(c1.k)-1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,1,c2); } // above
+			if(c2=getCell(row(c1.k)+0,col(c1.k)-1)){ mkLinkWhenDoesNotExist(c1,7,c2); } // left
+			if(c2=getCell(row(c1.k)+1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,5,c2); } // below
+			if(c2=getCell(row(c1.k)+1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,4,c2); } // bot rt   diag
+			if(c2=getCell(row(c1.k)-1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,2,c2); } // top left diag
+		});
+	};
+
+  [...Array(nCol*nRow).keys()].map((d,k)=> cells.push(Cell(k)));
   $.map(cells,(d)=> hashCell(d));
   configureLinks(cells);
   
@@ -48,14 +49,12 @@ var configureDataCenter=(nCol,nRow)=>{  // API
   $.map(links,(d)=> d.setState('connected1'));
   $.map(links,(d)=> d.setState('connected2'));  
 };
-var model=()=>
-  JSON.stringify({
-    cells:cells.map((d)=> [d.k ,d.state]),
-    links:links.map((d)=> [d.id,d.state] ),
-  })
-;
-// example for client
-/* example for client assume we have
+
+//================================================================================ lib
+var append=($p,$c)=>{ $p.append($c); return $c; };
+var add=(o,k,v)=> o[k]==undefined ? o[k]=[v]  : o[k].push(v);
+var range=(n)=> [...Array(n).keys()];
+/* this code is defined elsewhere,  but is used in the example
 	var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
 	var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
 	var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
@@ -64,31 +63,75 @@ var model=()=>
 		return aLine;
 	};
 */
-var clientViewFromModelExample=(s)=>{
-	var spacing=38;
-	var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position
+//================================================================================ api
+var extractTrees=(cells,links,__,trees={})=>{  // ea tree is a list of branches
+  // the cell.ports have LOV knowledge of trees,  we must convert to GEV
+  cells.map((c)=> 
+    c.ports.map((p)=> 
+      Object.keys(p.trees).map((tid)=> add(trees,tid,p.link.id))
+    )   
+  )
+  return trees;
+};
+var sendModel=()=>
+  JSON.stringify({
+    nRow:nRow,
+    nCol:nCol,
+    cells:cells.map((d)=> [d.k ,d.state] ), // ,d.ports.map(d)=> d.trees]),
+    links:links.map((d)=> [d.id,d.state]),
+    trees:extractTrees(cells,links),        // treeID:[linkID,.. ]
+  })
+;
+//================================================================================ VIEW example
+var clientViewFromModelExample=(s,__,render,json=JSON.parse(s))=>{
+	var spacing=30;
+	var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position is based on k
 	var y=   (k)=> (spacing/2)+spacing*row(k); 
 	$('svg').remove();
 	$('body').html('');
 	var svg=SVGnode('svg');
+	$(svg).attr({width:1000, height:1000});
 	$('body').append(svg);
-	var json=JSON.parse(s);
-	json.links.map(
-	  (d,__,args)=>{ 
-	    args=d[0].split('_'); 
-	    $(svg).append(
-	    line($(svg),x(args[0]),y(args[0]),x(args[2]),y(args[2]),{placed:'brown',on:'green'}[d[1]],3)
-	    )
-	  }
-	);
-	json.cells.map(
-	  (d)=> $(svg).append(
-	    $(SVGnode('circle')).attr({cx:x(d[0]),cy:y(d[0]), r:6, fill:{placed:'brown',on:'green'}[d[1]]})
-	  )
-	);
+	renderGraph=(svg,__,$gc,$gl)=>{
+	  $gl=append($(svg),$(SVGnode('g')));
+		json.links.map((d,__,args)=>{ 
+			args=d[0].split('_'); 
+			$gl.append(
+				line($gl,x(args[0]),y(args[0]),x(args[2]),y(args[2]),{placed:'gray',on:'black'}[d[1]],{placed:1,on:2}[d[1]]).attr('class',d[0])
+			)
+		});
+		$gc=append($(svg),$(SVGnode('g')));
+		json.cells.map((d)=> $gc.append(
+			$(SVGnode('circle')).attr({'class':'cell_'+d[0], cx:x(d[0]),cy:y(d[0]), r:6, fill:{placed:'gray',on:'green'}[d[1]]})
+		));
+		return svg;
+	};
+	
+
+	range(nRow*nCol).map((d,k,__,i=col(k),j=row(k))=>{
+	  renderGraph(append($(svg),$(SVGnode('svg')).attr({'id':'tile_'+k, width:301, height:301, x:i*(spacing+5)*nCol, y:j*(spacing+5)*nRow})));
+	  $('#tile_'+k+' .cell_'+k).attr({ r:9});
+	});
+	    
+	range(nRow*nCol).map((d,k,__,i=col(k),j=row(k))=>{
+  
+    json.trees[k] && json.trees[k].map((d,__,node)=>{      
+        node=$('#tile_'+k+' .'+d)[0];
+        $(node).attr({ stroke:'yellow','stroke-width':7, zindex:4})
+        node.parentElement.appendChild(node);  //  remove and append, so appears on top
+    })
+    
+	});	
 };
 
-// ========================================================= MODEL - CELL
+
+var test=(__,s)=> clientViewFromModelExample(sendModel()); // get the whole thing and display it
+var tr=()=> trPtr=setInterval(test,500);  // refresh the whole thing
+tr();
+setTimeout(()=> clearTimeout(trPtr),6000); // after 6 seconds, freeze the display
+
+
+//================================================================================ MODEL - CELL
 var maxCnt=0;   // max hop count
 var treeAdds=0; // how many branches have been created
 // hard wire cell positions
@@ -100,10 +143,8 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
     id:k,  // need a closure for uuid generation - in our case the k index has a spl meaning
     uuid:k,
     k:k, 
-    row:row(k), 
-    col:col(k),
     
-    x:x(k), // not used on server
+    x:x(k), // not used on server - but client does
     y:y(k), // not used on server
     
     state:'unplaced',  // unplaced,placed,on 
@@ -193,7 +234,7 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
   return self;
 };
 
-// ========================================================= MODEL - LINK
+//================================================================================ MODEL - LINK
 var Link=function(cell1,port1,cell2,port2,__,self){
   self={ 
     id:linkID(cell1,port1,cell2,port2), 
@@ -218,8 +259,7 @@ var Link=function(cell1,port1,cell2,port2,__,self){
         self.cell1.setPort(self.cell1Port,self);
       //self.cell1.ports[self.cell1Port].link=self;
         if(self.state=="unplaced"){
-          self.state='connected1'; 
-          self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);  
+          self.state='connected1'; //v self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);  
         }    
         else if(self.state=='connected2'){
           self.setState('placed');
@@ -231,8 +271,7 @@ var Link=function(cell1,port1,cell2,port2,__,self){
         self.cell2.setPort(self.cell2Port,self);
       //self.cell2.ports[self.cell2Port].link=self;
         if(self.state=="unplaced"){
-          self.state='connected2'; 
-          self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);  
+          self.state='connected2'; //v self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);  
         }    
         else if(self.state=='connected1'){
           self.setState('placed');
@@ -240,12 +279,11 @@ var Link=function(cell1,port1,cell2,port2,__,self){
       }     
     
       if(state=='placed'){ 
-        self.state='placed';
-        self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);      
+        self.state='placed'; //v self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);      
         if(self.cell1.state=='on' && self.cell2.state=='on'){ self.setState('on'); } // state change zzzz hidden away
       }
       if(state=='on'){ 
-        self.state='on'; self.view.attr(self.attr[self.state]); 
+        self.state='on'; //v self.view.attr(self.attr[self.state]); 
         if(self.cell1.state!="on" || self.cell2.state!="on"){ 
           console.log('error - trying to set link to on when an endpt cell is not on'); 
         }
@@ -257,6 +295,7 @@ var Link=function(cell1,port1,cell2,port2,__,self){
       if(self.state=="placed" && cell1.state=="on" && cell2.state=="on"){ self.setState('on'); }
     },
     triggerDiscover:()=>{  // called when state -> 'on' 
+    /*
       // view
       $('.fresh').removeClass('fresh');
       $('.freshLink').remove();
@@ -265,7 +304,7 @@ var Link=function(cell1,port1,cell2,port2,__,self){
       $('#base2').append($(SVGnode('circle')).attr({cx:x(cell1.id),cy:y(cell1.id),r:5,fill:'orange'}));
       $('#base2').append($(SVGnode('circle')).attr({cx:x(cell2.id),cy:y(cell2.id),r:5,fill:'pink'}));
       $('#info').html('discover between '+cell1.id+' - '+cell2.id);
-      
+     */ 
       // model
       cell1.broadcastTrees(self.cell1Port);
       cell2.broadcastTrees(self.cell2Port);
@@ -278,7 +317,9 @@ var Link=function(cell1,port1,cell2,port2,__,self){
       on        :{ stroke:'green'  }
     },                   
   };
+  /*
   self.view=$(SVGnode('line')).attr(linkEndPts(self)).attr({'class':self.id})
              .attr({ "stroke-width":2 }).attr(self.attr[self.state]);
+  */
   return self;   // receiver still needs to append self.view
 };
