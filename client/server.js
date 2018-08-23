@@ -1,3 +1,10 @@
+// ========================================================= RENDER (the cells)
+var cell_observers={  
+  update:(cell)=>{}
+};
+var link_observers={  
+  update:(link,treeID,op,data)=>{}
+};
 //================================================================================ lib
 /*
 stackoverflow.com/questions/424292/seedable-javascript-random-number-generator

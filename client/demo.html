@@ -27,13 +27,7 @@ var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
 };
 var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
 
-// ========================================================= RENDER (the cells)
-var cell_observers={  
-  update:(cell)=>{}
-};
-var link_observers={  
-  update:(link,treeID,op,data)=>{}
-};
+
 // ========================================================= CONSOLE/CONTROL
 /* time lines controls that might be used latter
 var controls=()=>{
@@ -123,6 +117,7 @@ var model_render=(json,__,tiles,renderGraph)=>{
   });  
 };
 // ========================================================= 
+
 $(document).ready(function(__,svg,base1,base2){ 
  // controls();
   model_configure(5,4); 
