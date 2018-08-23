@@ -19,30 +19,21 @@ var ops=[
 var append=($p,$c)=>{ $p.append($c); return $c; };
 var add=(o,k,v)=> o[k]==undefined ? o[k]=[v]  : o[k].push(v);
 var range=(n)=> [...Array(n).keys()];
-var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
-var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
-var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
-  aLine=$(SVGnode('line'))
-  parent.append(aLine.attr({ x1:x1, y1:y1, x2:x2, y2:y2, stroke:stroke, "stroke-width":width }));
-  return aLine;
-};
-var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
+
 //================================================================================ data
 var cells=[],cellHash={}, hashCell=(cell)=> cellHash[row(cell.k)+'_'+col(cell.k)]=cell;
 var getCell= (row,col)=> cellHash[row+'_'+col];
 var links=[],linkHash={}; 
 var linkID=(c1,p1,c2,p2)=> (c1.id<c2.id) ? c1.id+'_'+p1+'_'+c2.id+'_'+p2 : c2.id+'_'+p2+'_'+c1.id+'_'+p1;
 
-var spacing=38;
-var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position
-var y=   (k)=> (spacing/2)+spacing*row(k);  
+
 var nCol, nRow;  // 5 x 4  or  8 x 12
 /* 
-	 8  1  2
-		\ | /
-	7 - 0 - 3  there is a spl port (I put in the center, numbered '0')
-		/ | \
-	 6  5  4   
+   8  1  2
+    \ | /
+  7 - 0 - 3  there is a spl port (I put in the center, numbered '0')
+    / | \
+   6  5  4   
 
  p2=(p1)=>  p1<5 ? p1+4 : p1-4;
  range(8).map(p2)  // [4, 5, 6, 7, 8, 1, 2, 3, 4]  note: we never call p2 w/ 0
@@ -57,33 +48,33 @@ var model_configure=(nCol_,nRow_,__,configureLinks)=>{  // API
   col= (k)=> k%nCol;              // GLOBAL, used by view
   row= (k)=> Math.floor(k/nCol);  // GLOBAL
   configureLinks= (cells)=> {
-		$.map(cells,(c1,__,c2,mkLinkWhenDoesNotExist)=> { 
-			mkLinkWhenDoesNotExist= (c1,p1,c2,__,p2=(p1)=>  p1<5 ? p1+4 : p1-4,lid,link)=>{ 
-				lid=linkID(c1,p1,c2,p2(p1));
-				if(linkHash[lid]==undefined){ 
-					link=Link(c1,p1,c2,p2(p1)); 
-					links.push(link); 
-					linkHash[lid]=link;
-				} 
-			};
-			// for ea port: find its potential neighbor cell; make a link if it does not already exist
-			if(c2=getCell(row(c1.k)+0,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,3,c2); } // right
-			if(c2=getCell(row(c1.k)-1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,1,c2); } // above
-			if(c2=getCell(row(c1.k)+0,col(c1.k)-1)){ mkLinkWhenDoesNotExist(c1,7,c2); } // left
-			if(c2=getCell(row(c1.k)+1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,5,c2); } // below
-			if(c2=getCell(row(c1.k)+1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,4,c2); } // bot rt   diag
-			if(c2=getCell(row(c1.k)-1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,2,c2); } // top left diag
-		});
-	};
+    _.map(cells,(c1,__,c2,mkLinkWhenDoesNotExist)=> { 
+      mkLinkWhenDoesNotExist= (c1,p1,c2,__,p2=(p1)=>  p1<5 ? p1+4 : p1-4,lid,link)=>{ 
+        lid=linkID(c1,p1,c2,p2(p1));
+        if(linkHash[lid]==undefined){ 
+          link=Link(c1,p1,c2,p2(p1)); 
+          links.push(link); 
+          linkHash[lid]=link;
+        } 
+      };
+      // for ea port: find its potential neighbor cell; make a link if it does not already exist
+      if(c2=getCell(row(c1.k)+0,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,3,c2); } // right
+      if(c2=getCell(row(c1.k)-1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,1,c2); } // above
+      if(c2=getCell(row(c1.k)+0,col(c1.k)-1)){ mkLinkWhenDoesNotExist(c1,7,c2); } // left
+      if(c2=getCell(row(c1.k)+1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,5,c2); } // below
+      if(c2=getCell(row(c1.k)+1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,4,c2); } // bot rt   diag
+      if(c2=getCell(row(c1.k)-1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,2,c2); } // top left diag
+    });
+  };
 
   range(nCol*nRow).map((d,k)=> cells.push(Cell(k)));
-  $.map(cells,(d)=> hashCell(d));
+  _.map(cells,(d)=> hashCell(d));
   configureLinks(cells);
   
 // start with all machines wired
-  $.map(cells,(d)=> d.setState('placed'    )); // there is a bug in my link fsm
-  $.map(links,(d)=> d.setState('connected1'));
-  $.map(links,(d)=> d.setState('connected2')); 
+  _.map(cells,(d)=> d.setState('placed'    )); // there is a bug in my link fsm
+  _.map(links,(d)=> d.setState('connected1'));
+  _.map(links,(d)=> d.setState('connected2')); 
   console.log('fini configuring'); // links.map((d)=> d.state)  everything is 'placed'
 };
 //================================================================================ api
@@ -134,7 +125,7 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
       { link:null, trees:{} },
       { link:null, trees:{} }
     ],    // r t l b
-    notifyPorts:()=> $.map(self.ports,(d)=> (d.link && d.link.update())), // called by .setState
+    notifyPorts:()=> _.map(self.ports,(d)=> (d.link && d.link.update())), // called by .setState
     setPort:(porti,link)=>{ self.ports[porti].link=link; },
     trees:{ /* k:{ id:k, in:null, out:{}, pruned:{} } */},
     setState:(state,__,state0)=>{   // FSM  needed - suggestions please  sends .update msg to links
@@ -183,7 +174,7 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
         })  );
         s.match('3_3_4_7') && console.log('sending',s);
         
-        $.map(otherCell.ports,(port,k,__)=>{ // send out
+        _.map(otherCell.ports,(port,k,__)=>{ // send out
           if(port.link && port.link.state=='on' && port!=otherPort){
           //setTimeout(()=>otherCell.propagateTreeOnPort(treeID,k,cnt+1),300); // zzzz
             otherCell.propagateTreeOnPort(treeID,k,cnt+1); // zzzz
@@ -204,15 +195,17 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
     },
     broadcastTrees:(port_out,__)=>{  // called by Link.triggerDiscover when a link turns 'on'
       if(self.ports[port_out].link && self.ports[port_out].link.state=='on'){  // always
-        $.map(self.trees,(tree)=> self.propagateTreeOnPort(tree.id,port_out,0) );
+        _.map(self.trees,(tree)=> self.propagateTreeOnPort(tree.id,port_out,0) );
       }
     },  
     update:()=>{ cell_observers.update(self); }, // called by .setState
+    /*
     attr:{  // view
       unplaced:{cx:x(k),cy:y(k),r:8, z:k, fill:'gray'   },
       placed  :{cx:x(k),cy:y(k),r:8, z:k, fill:'black' },
       on      :{cx:x(k),cy:y(k),r:8, z:k, fill:'green'  }
     },
+    */
   }
   return self;
 };

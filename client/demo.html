@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
 <script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
+<script  type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script  >
 <script src='server.js'></script>
 <style>
 *                     { margin: 0;  padding: 0;  outline: none;  box-sizing: border-box; }
@@ -14,7 +15,17 @@ button                { font: 20px system-ui; margin:5px;}
   <button id='faster'  >->         </button>   <button id='slower' >+>       </button> <br/>
  <br/>
 </div>
-<script>$('body').css('background','#DDDDDD');
+<script>
+$('body').css('background','#DDDDDD');
+//================================================================================ lib
+var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
+var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
+var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
+  aLine=$(SVGnode('line'))
+  parent.append(aLine.attr({ x1:x1, y1:y1, x2:x2, y2:y2, stroke:stroke, "stroke-width":width }));
+  return aLine;
+};
+var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
 
 // ========================================================= RENDER (the cells)
 var cell_observers={  
@@ -66,46 +77,50 @@ var pid=setInterval((__,s=stream.shift())=>{
   s!=undefined && $.map(JSON.parse(s),(s,k)=>{ s.match('3_3_4_7') && console.log(k,s); router[k](s); })
 },100);
 //================================================================================ VIEW
+var spacing=38;
+var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position
+var y=   (k)=> (spacing/2)+spacing*row(k);  
+
 var model_render=(json,__,tiles,renderGraph)=>{
-	var spacing=30;
-	var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position is based on k
-	var y=   (k)=> (spacing/2)+spacing*row(k); 
-	$('svg').remove();
-	$('body').html('');
-	var svg=SVGnode('svg');
-	$(svg).attr({width:1000, height:1000});
-	$('body').append(svg);
-	renderGraph=(svg,__,$gc,$gl)=>{
-	  $gl=append($(svg),$(SVGnode('g')));
-		json.links.map((d,__,args)=>{ 
-			args=d[0].split('_'); 
-			$gl.append(
-				line($gl,x(args[0]),y(args[0]),x(args[2]),y(args[2]),
-				  {placed:'gray',on:'black'}[d[1]],{placed:1,on:2}[d[1]]).attr('class','link_'+d[0])
-			)
-		});
-		$gc=append($(svg),$(SVGnode('g')));
-		json.cells.map((d)=> $gc.append(
-			$(SVGnode('circle'))
-			  .attr({'class':'cell_'+d[0], cx:x(d[0]),cy:y(d[0]), r:6, fill:{placed:'gray',on:'green'}[d[1]]})
-		));
-		return svg;
-	};
-	
+  var spacing=30;
+  var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position is based on k
+  var y=   (k)=> (spacing/2)+spacing*row(k); 
+  $('svg').remove();
+  $('body').html('');
+  var svg=SVGnode('svg');
+  $(svg).attr({width:1000, height:1000});
+  $('body').append(svg);
+  renderGraph=(svg,__,$gc,$gl)=>{
+    $gl=append($(svg),$(SVGnode('g')));
+    json.links.map((d,__,args)=>{ 
+      args=d[0].split('_'); 
+      $gl.append(
+        line($gl,x(args[0]),y(args[0]),x(args[2]),y(args[2]),
+          {placed:'gray',on:'black'}[d[1]],{placed:1,on:2}[d[1]]).attr('class','link_'+d[0])
+      )
+    });
+    $gc=append($(svg),$(SVGnode('g')));
+    json.cells.map((d)=> $gc.append(
+      $(SVGnode('circle'))
+        .attr({'class':'cell_'+d[0], cx:x(d[0]),cy:y(d[0]), r:6, fill:{placed:'gray',on:'green'}[d[1]]})
+    ));
+    return svg;
+  };
+  
   var tiles=range(nRow*nCol);
-	tiles.map((d,k,__,i=col(k),j=row(k))=>{ // make a tile for ea cell, put whole graph on ea tile
-	  renderGraph(append($(svg),$(SVGnode('svg'))
-	    .attr({'id':'tile_'+k, width:301, height:301, x:i*(spacing+5)*nCol, y:j*(spacing+5)*nRow})
-	  ));
-	  $('#tile_'+k+' .cell_'+k).attr({ r:9});
-	});
-	tiles.map((d,k,__,i=col(k),j=row(k))=>{ // put a tree on ea tile
+  tiles.map((d,k,__,i=col(k),j=row(k))=>{ // make a tile for ea cell, put whole graph on ea tile
+    renderGraph(append($(svg),$(SVGnode('svg'))
+      .attr({'id':'tile_'+k, width:301, height:301, x:i*(spacing+5)*nCol, y:j*(spacing+5)*nRow})
+    ));
+    $('#tile_'+k+' .cell_'+k).attr({ r:9});
+  });
+  tiles.map((d,k,__,i=col(k),j=row(k))=>{ // put a tree on ea tile
     json.trees[k] && json.trees[k].map((d,__,node)=>{      
         node=$('#tile_'+k+' .link_'+d)[0];
         $(node).attr({ stroke:'yellow','stroke-width':7})
         node.parentElement.appendChild(node);  //  remove and append, so appears on top
     })
-	});	
+  });  
 };
 // ========================================================= 
 $(document).ready(function(__,svg,base1,base2){ 
