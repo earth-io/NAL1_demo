@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
 <script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
-<script src='http://d3js.org/d3.v3.min.js'></script>
 <script src='server.js'></script>
 <style>
 *                     { margin: 0;  padding: 0;  outline: none;  box-sizing: border-box; }
@@ -9,564 +8,122 @@ body                  { background: 'white'; margin-top:50; }
 button                { font: 20px system-ui; margin:5px;}
 #content              { position:relative;  margin-top:2px;  margin-left: 5%; }
 .abs                  { position:absolute; }
-.fresh.cellBackground { fill:blue;  }
 </style>
-
-<!--
-<pre>
-stack11 click a cell to get info
-console cmnds:
- $.map(cells,(d)=> d.setState('placed'))
- $.map(cells,(d)=> d.setState('on'    ))
- $.map(cells,(d,k)=> hiliteTree(k))
- 
-
- 
- showTrees()
- hiliteTree(7)
- hiliteCellsWithTree(7)
- numberOfCellsInEachTree()
- discoveredCells.length  // 80
- hiliteCellsWithTree(2)
- $.map(cells,(d)=> console.log(d.id,cellsWithTree(d.id)))
- numberOfCellsInEachTree().reduce((acc,val)=> acc+val, 0);  // 625 = 25*25 - treeAdds
- treeAdds   // 24*25
--------------------------------------------
-link.state goes to 'on' ea cell of the link gets a 'discover' msg containing the port
-see DTA-Section5
-
-TBD: 
-tests: how many unconnected regions we have
-have a max cnt and record condn for when this happens,  allow setting a bkpt
-print maxCnt as it increases
-</pre>
--->
 <div id='controls' style="padding-left: 50px;">
   <button id='pause'   >pause      </button>   <button id='resume' >resume   </button> <br/>
   <button id='faster'  >->         </button>   <button id='slower' >+>       </button> <br/>
-  <button id='tile'    >tiled view </button>
-  <button id='stacked' >stacked    </button>
-  <button id='nstacked'>nice stack </button>
-  <button id='topview' >top view   </button> <br/>
+ <br/>
 </div>
-<div id="info" style="height:100px; padding-left: 50px;"> --- 
-  <!-- when click a cell or link, info appears here zzz -->
-</div>
-
-<svg height='0'>
- <defs>
-  <marker id="marker_arrow" 
-    orient="auto" 
-    refX="-5" refY="0" viewBox="-5 -5 10 10" markerWidth="1" markerheight="1" 
-   >
-   <path id="marker_arrow_path" d="M 0,0 m -5,-5  L 5,0  L -5,5  Z" fill="red"></path>
-  </marker>
- </defs>
-</svg>
-<table id="content_panel">
- <tr>
-   <div id='heading' style="padding-left: 50px;"><h2>
-     Datacenter Graph &nbsp;&nbsp;&nbsp;&nbsp;
-     Reachability Matrix</h2>
-   </div>
-  </tr>
- <tr>
-  <td             ><div id="content"></div></td>
-  <td valign="top"><div id="panel"  ></div></td>
- </tr>
-</table>
 <script>$('body').css('background','#DDDDDD');
-/*
-stackoverflow.com/questions/424292/seedable-javascript-random-number-generator
-stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
-*/
-var randumb=((__,seed=1)=>  // gives the same series of numbers every time
-  (__,x=Math.sin(seed++)*10000)=> x - Math.floor(x)
-)();
-//var Math_random=Math.random();
-/*
-  $('svg').append($(SVGnode('line'))
-    .attr({ x1:20, y1:20, x2:100, y2:20, 
-      "stroke-width":18, stroke:'blue', 
-      "marker-end":'url(#marker_arrow)' 
-    })
-  );
-*/
-var Math_random=randumb;
-var random= (arr)=> arr[Math.floor(arr.length*Math_random())]; 
-var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
-var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
-var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
-  aLine=$(SVGnode('line'))
-  parent.append(aLine.attr({ x1:x1, y1:y1, x2:x2, y2:y2, stroke:stroke, "stroke-width":width }));
-  return aLine;
-};
-var color = d3.scale.category10();
-// ========================================================= positioning
-var spacing=38;
-var f45=Math.cos(Math.PI/4);
-var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position
-var y=   (k)=> (spacing/2)+spacing*row(k);  
-var px= [ 1, 0,-1, 0,  f45, -f45, -f45, f45 ]; // port position wrt cell
-var py= [ 0, -1, 0, 1, -f45, -f45,  f45, f45 ];
-var px= [ 0,   0, f45,   1, f45,   0,-f45,  -1,-f45 ]; // port position wrt cell
-var py= [ 0,  -1,-f45,   0, f45,   1, f45,   0,-f45 ];
-var endPts=(d,__,r=7)=>({  // d is a link, link endPts are cell ports
-  x1:d.cell1.x+ 1.1*r*px[d.cell1Port],
-  y1:d.cell1.y+ 1.1*r*py[d.cell1Port],
-  x2:d.cell2.x+ 1.1*r*px[d.cell2Port],
-  y2:d.cell2.y+ 1.1*r*py[d.cell2Port]
-});
-
-var linkEndPts=(d,__,r=7)=> ({
-  x1:d.cell1.x+ (d.state=='connected2' ? 2.1 : 1)*r*px[d.cell1Port],
-  y1:d.cell1.y+ (d.state=='connected2' ? 2.1 : 1)*r*py[d.cell1Port],
-  x2:d.cell2.x+ (d.state=='connected1' ? 2.1 : 1)*r*px[d.cell2Port],
-  y2:d.cell2.y+ (d.state=='connected1' ? 2.1 : 1)*r*py[d.cell2Port]
-});
-var branchEndPts=(pt1,port1,pt2,port2,__,r=7)=> { 
-  var foo={  // pt1 is the head or point to the line 
-  // test 
-  // link=links[3];
-  // $('#base1').append($(SVGnode('line'))
-  //   .attr(branchEndPts(link,link.cell1,link.cell2)).attr({ "stroke-width":5, stroke:'red'}));
-
-  // https://www.w3.org/TR/SVG11/images/painting/linejoin.svg
-  // miter round bevel
-  // https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-linecap
-  //  stroke-linecap  butt | round | square | inherit
-    x1:pt1.x+ 2.1*r*px[port1],
-    y1:pt1.y+ 2.1*r*py[port1],
-    x2:pt2.x+     r*px[port2],
-    y2:pt2.y+     r*py[port2]
-  }
-  return foo;
-};
-var branchEndPtsR=(pt1,port1,pt2,port2,__,r=7)=> { 
-  var foo={  // pt1 is the head or point to the line 
-  // test 
-  // link=links[3];
-  // $('#base1').append($(SVGnode('line'))
-  //   .attr(branchEndPts(link,link.cell1,link.cell2)).attr({ "stroke-width":5, stroke:'red'}));
-
-  // https://www.w3.org/TR/SVG11/images/painting/linejoin.svg
-  // miter round bevel
-  // https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-linecap
-  //  stroke-linecap  butt | round | square | inherit
-    x1:pt1.x+     r*px[port1],
-    y1:pt1.y+     r*py[port1],
-    x2:pt2.x+ 1.5*r*px[port2],
-    y2:pt2.y+ 1.5*r*py[port2]
-  }
-  return foo;
-};
-
-
-// ========================================================= layout and arrangements
-var nCol=5, nRow=4;  // 5 x 4  or  8 x 12
-var wid=nCol*spacing, ht=nRow*spacing;
-var topLayer,svg;  // kludge  // defined and placed last, so is at top
-
-$('#content').css({width:(nCol*nCol*spacing)+nCol*4+70}); // zzz why need the 100 fudge?
-$('#panel').html('panel');
-
-var stdView=()=> {
-  $('#connectionTable').css({
-    transform:
-        "translateX("+(wid+40)+"px) "
-  }).html(' ')
-  $('.baseTile').css({ 
-    "z-index":3020, transition:"all 2.5s ease-out",transform:"", opacity:1, x:30,
-    'box-shadow':"0px 0px 10px 2px rgba(0,0,0,0.7)"
-  });
-  $('.tileBackground').css({ opacity:0.0 });
-  $('.cellBackground').css({ opacity:1   });
-  $('.branch'        ).css({'stroke-width':4});
-  
-  $('.tile'          ).css({
-    transition:"all 2.5s ease-out",
-    transform:"",
-    "box-shadow":"0px 0px 10px 2px rgba(0,0,0,0.7)",
-    opacity:0 
-  });
-};
-var stackedView=(kFocus,__,skew)=>{
-//skew=(z)=> "rotateX(45deg) rotateZ(45deg) translateZ(-"+z+"px)";
-  skew=(z)=> "rotateX(80deg) rotateZ(17deg) translateZ(-"+z+"px)"; // z must be >0
-
-  $('.baseTile').css({ 
-    "z-index":3020, transition:"all 2.5s ease-out",transform:skew(0), opacity:1, 
-    'box-shadow':"0px 0px 10px 2px rgba(0,0,0,0.7)" 
-  });
-  $('.tileBackground').css({ opacity:0.0  });  // 0.05 is lowest value w/a change
-  $('.cellBackground').css({ opacity:0.15 });
-  $('.branch'        ).css({'stroke-width':4});
-    
-  $.map($('.tile'),(d,k)=> {
-    $(d).css({
-      transition:"all 2.5s ease-out",
-      transform:skew((k*40)+1),
-      "box-shadow":"0px 0px 2px 1px rgba(0,0,0,0.2)",
-      opacity:1
-    });
-    // maybe raise the focus layer      "z-index":0, 
-  });
-};
-var niceStackView=(__,skew)=>{
-  skew=(z)=> "rotateX(5deg) rotateZ(5deg) translateZ(-"+z+"px)"; // // z must be >0
-  
-  $('.baseTile').css({ 
-    "z-index":3020, transition:"all 2.5s ease-out",transform:skew(0), opacity:1, 
-    'box-shadow':"0px 0px 10px 2px rgba(0,0,0,0.7)" 
-  });
-  $('.tileBackground').css({ opacity:0.0  });
-  $('.cellBackground').css({ opacity:0.03 });
-  $('.branch'        ).css({'stroke-width':3});  
-  
-  $.map($('.tile'),(d,k)=> $(d).css({
-    transition:"all 2.5s ease-out",
-    transform:skew((k*40)+1),
-    "box-shadow":"0px 0px 2px 1px rgba(0,0,0,0.2)",
-    'z-index':3000-k,
-    opacity:1
-  }));
-
-};
-var tile=()=>{
-  $('.baseTile').css({ 
-    "z-index":3020, transition:"all 2.5s ease-out",transform:"", opacity:1, 
-    'box-shadow':"0px 0px 10px 2px rgba(0,0,0,0.7)" 
-  });
-  $('.tileBackground').css({ opacity:0.1 });
-  $('.cellBackground').css({ opacity:0.2 });
-  $('.branch'        ).css({'stroke-width':4});  
-  
-  $.map($('.tile'),(d,k)=> {
-    $(d).css({
-      transition:"all 2.5s ease-out",
-      transform:
-        "translateX("+((k%nCol)*(wid+7))+"px) "+
-        // the extra ht so tiles are not over toplayer
-        "translateY("+((ht+4)+((Math.floor((k/nCol))*(ht+7))))+"px)", 
-      "box-shadow":"0px 0px 10px 2px rgba(0,0,0,0.7)",
-      opacity:1 
-    });
-  // find the child with .tileBackground and set opactiy to 1.0
-  });
-};
-
-
-var Tile=(k,__,layer)=>{
-  layer=$(DIV)
-    .attr({'class':"abs tile"})
-    .css({ width:wid, height:ht })
-    .data('z',k)  // is this what I want?
-  ;
-  // ea layer has a semitransparent background and a SVG w/objs and separate opacity
-  layer.append($(DIV).attr({'class':'abs tileBackground'})
-    .css({ width:wid, height:ht, background:color(k), opacity:0.1})
-  );
-  layer.svg=$(SVGnode('svg')).attr({id:'tile'+k, 'class':'tileSVG', width:wid, height:ht, xmlns:svgNS });
-  layer.append($(DIV).attr({ 'class':'abs'}).append(layer.svg));
-  return layer;
-};
-
-var layout=()=>{
-/*
-developer.mozilla.org/en-US/docs/Web/CSS/border
- $('table').css({'border':'10px dotted'})
- $('td').css({'border':'5px solid red'})
-*/
-  // the 2nd td  - in html it is valign
-  // .css({'vertical-align':'top'})
-
-  // everything I put into #content is absolutely positioned (ie the tiles)
-  // so we have to fix the size
-  $('#content').css({ width:(nCol*nCol*spacing)+nCol*4+70, height:(nRow*nRow*spacing)+nRow*4+70 });
-  
-
-};
 
 // ========================================================= RENDER (the cells)
-var renderCells=(svg)=> $.map(cells,(d,k)=>
-  $('#toplayer').append( 
-    $(SVGnode('circle')).data({k:k, cell:d})
-                        .attr(d.attr[d.state]).attr({'class':'cell cell_'+k}) // JJJJ
-  )
-);
-var renderedCells={};
-
 var cell_observers={  
-  update:(cell)=>{
-  return;
-    $('.cell_'+cell.id).attr(cell.attr[cell.state]);  // JJJJ  
-    
-    // return
-    $.map(cell.trees,(tree)=>{ // we must go over all properties since update doesnt say what changed
-    //  $.map($('.tile svg'),(d,k,__,tile)=>{  DDDD
-      //if($('#tile'+k+'.cellBackground.cell'+tree.id).length==0){ // slows things to crawl
-        if(!renderedCells[tree.id+'_'+cell.id]){
-          renderedCells[tree.id+'_'+cell.id]=true;
-          //$(d)   DDDD
-          $('#tile'+tree.id).append(  //  x and y logic not understood
-            $(SVGnode('rect'))
-              .attr({ class:'fresh cellBackground cell'+cell.id, 
-                x:(x(cell.k)-spacing/2),y:(y(cell.k)-spacing/2),width:spacing-1,height:spacing-1,
-                fill:'green', opacity:0.3
-              })
-              .data({cell:cell})
-          );
-          //$(d)  DDDD
-          $('#tile'+tree.id).append(
-            $(SVGnode('circle'))
-              .attr({ class:'fresh cell cell'+cell.id, 
-                      cx:x(cell.k),cy:y(cell.k),r:(tree.id==cell.id) ? 8 : 5,
-                      fill:(tree.id==cell.id) ? '#FF7777' : 'yellow' 
-              })
-              .data({cell:cell})
-          )
-        };
-    //  })  // over ea tile/tree
-    }) // over ea cell.tree
-  }   // update
+  update:(cell)=>{}
 };
-
 var link_observers={  
-  update:(link,treeID,op,data)=>{
-  return;
-    if(op=='hilitePropagation'){ // data is {cell1:, port1:, cell2:, port2:, tree: ,cnt: }
-      $('#base'+2).append(
-        $(SVGnode('line'))
-          .attr(branchEndPts(data.cell1,data.port1,data.cell2,data.port2)).attr({'class':'self.id freshLink'})
-          .attr({ "stroke-width":(15-data.cnt) }).attr({stroke:[0,'red','blue'][2]})  // layer is 2
-      );                  
-      return;
-    }
- 
-
-    // from hiliteTree - put in rendering section
-    /*
-    $('#tile'+treeID).append(
-      $(SVGnode('line')).attr(endPts(link))
-        .attr({ "class":'branch '+'connection_'+treeID+'_'+link.id,"stroke-width":4, stroke:'yellow'})
-    );
-    */
-    if(op=='tree_branch'){
-      // marker_arrow_path
-      $('#marker_arrow_path').attr({fill:'yellow'});
-      $('#tile'+treeID).append(
-        $(SVGnode('line'))
-        //.attr(endPts(link))  // x1 y1 x2 y3
-          .attr(data)
-          .attr({
-            "class":'branch '+'connection_'+treeID+'_'+link.id
-            +' cellBranch_'+link.id.split('_')[0]+' cellBranch_'+link.id.split('_')[1]
-            ,
-            "stroke-width":10, stroke:'yellow', 
-            "marker-end":'url(#marker_arrow)' 
-          })
-      );
-    }     
-  }   // update
+  update:(link,treeID,op,data)=>{}
 };
-
-
-var hiliteTree=(k,__,p)=>{
-  p=$('#base2');
-  p.empty();
-  p.append($(SVGnode('circle')).attr({cx:x(k),cy:y(k),r:5, fill:'orange'}));
-  $.map(links,(d)=>{ //find all links that 'carry' a tree
-    if(d.cell1 && d.cell1.ports[d.cell1Port] && d.cell1.ports[d.cell1Port].trees[k] &&
-       d.cell2 && d.cell2.ports[d.cell2Port] && d.cell2.ports[d.cell2Port].trees[k]   ){
-      p.append(
-        $(SVGnode('line')).attr(endPts(d)).attr({"stroke-width":4}).attr({stroke:'orange'})
-      );
-    }
-  });
-};
-var hiliteTree=(k,__,p)=>{  // called by showTrees(0)
-  p=$('#tile'+k);
-//  p.empty();
-//  p.append($(SVGnode('circle')).attr({ 'class':'c_'+k, cx:x(k),cy:y(k),r:5, fill:'orange'}));
-  $.map(links,(d)=>{ //find all links that 'carry' a tree
-    if(d.cell1 && d.cell1.ports[d.cell1Port] && d.cell1.ports[d.cell1Port].trees[k] &&
-       d.cell2 && d.cell2.ports[d.cell2Port] && d.cell2.ports[d.cell2Port].trees[k]   ){
-      p.append(
-        $(SVGnode('line')).attr(endPts(d)).attr({ "class":'branchline',"stroke-width":4, stroke:'yellow'})
-      );
-    }
-  });
-};
-// ========================================================= TESTING
-var cellsWithTree=(i,__,arr=[])=>{ 
-  $.map(cells,(d,k)=>{ if(d.trees[i]){ arr.push(d.id); } });
-  return arr;
-};
-// $.map(cells,(d)=> console.log(d.id,cellsWithTree(d.id)))
-
-var numberOfCellsInEachTree=()=> 
-  $.map(cells,
-    (tree,k,__,cnt=0)=>{ $.map(cells,(cell)=> cnt+=cell.trees[tree.id] ? 1 : 0 ); return cnt; }
-  )
-;
-
-// numberOfCellsInEachTree().reduce(function(acc, val) { return acc + val; }, 0);
-
-
 // ========================================================= CONSOLE/CONTROL
-//var base1,base2,svg;  // kludge
-var report= (target)=> $(target).data('cell').id+' '+$(target).data('cell').state ;  // zzzzz
-report = (target)=> console.log(target)
-report = (target)=>{ $('#panel').html($(target).attr('class')); 'see panel' }
-
-var showTrees =(dt)=> $.map(cells,(d,k)=> setTimeout(()=> hiliteTree(k),k*dt) );
-var treeCounts=()=> $.map(cells,(d,k)=> console.log(k,$.map(d.trees,(d,k)=> k).length) );
-
-
-var renderLinks=(svg)=> $.map(links,(d,k)=> $('#toplayer').append( d.view       ) );
-
-var cnt1=0,cnt2=0,cnt3=0;
-var ck=()=> console.log((3*cnt1)/(cnt1+cnt2+cnt3),(3*cnt2)/(cnt1+cnt2+cnt3),(3*cnt3)/(cnt1+cnt2+cnt3));
-var ops=[
-//(__,d)=>{ cnt1++; d=random(links); return d.state!=d.setState('placed'    ); },
-  (__,d=random(links))=>{ cnt1++; return d.state!=d.setState('connected1'); }, // may trigger placed
-  (__,d=random(links))=>{ cnt1++; return d.state!=d.setState('connected2'); }, // may trigger placed
-  (__,d=random(cells))=>{ cnt2++; return d.state!=d.setState('placed'    ); },
-  (__,d=random(cells))=>{ cnt3++; return d.state!=d.setState('on'        ); }  // may trigger 'on' of links
-];
-
-var DT=2000;
-DT=300;
+/* time lines controls that might be used latter
+var controls=()=>{
+  $('#resume' ).css({ opacity:0.5 });
+  $('#pause'  ).on('click',(ev)=>{ if(!paused){ pause();  $('#pause' ).css({ opacity:0.5 }); $('#resume').css({ opacity:1.0 }); } });
+  $('#resume' ).on('click',(ev)=>{ if( paused){ resume(); $('#resume').css({ opacity:0.5 }); $('#pause' ).css({ opacity:1.0 }); } });
+  $('#slower' ).on('click',(ev)=>{ DT=DT/2; console.log(DT,'slower'); }); // zzz should be faster
+  $('#faster' ).on('click',(ev)=>{ DT=DT*2; console.log(DT,'faster'); }); // zzz should be slower
+  $('body'    ).on('click','circle',(ev)=>{ ev.stopPropagation();   
+    // array.toString() keeps the ',' but gets rid of the '[' and ']', nuke the ',' w/ .join('')
+   // $('#panel').html(div($.map($(ev.target).data('cell').trees,(d)=>div(d.id)).join('')));
+  });  
+};
+*/
 var paused =false;
 var pause  =()=>{ paused=true;  };
 var resume =()=>{ paused=false; };
 
-var attempt=(__,dt)=> paused ?  50 : (random(ops)() ?  DT : 0) ;  // I could inline w/ next line
-var more=()=> setTimeout(more,attempt()); 
+var DT=500;  // mod DT for faster or slower
+// when random(ops)() fails,  0 is returned and 'more' is immediately called again
+var attempt=(__,dt)=> paused ?  50 : (random(ops)() ?  DT : 0) ; // dont do anything, but try again in 50ms
+// this pattern is like a setInterval,  but you may vary the time delay
+// the 'work' is not done by more,  it is done by a fn called within attempt
+var more=()=> setTimeout(more,attempt());  // attempt could be inlined, attempt must return a dt
 
-
-// BEHAVIOR
-var fool;
-var behavior=()=>{
-  var div=(s)=>{ return '<DIV>'+s+'</DIV>'; };
-  
-  $('#resume' ).css({ opacity:0.5 });
-  $('#pause'  ).on('click',(ev)=>{ if(!paused){ pause();  $('#pause' ).css({ opacity:0.5 }); $('#resume').css({ opacity:1.0 }); } });
-  $('#resume' ).on('click',(ev)=>{ if( paused){ resume(); $('#resume').css({ opacity:0.5 }); $('#pause' ).css({ opacity:1.0 }); } });
-  $('#slower' ).on('click',(ev)=>{ DT=DT/2; });
-  $('#faster' ).on('click',(ev)=>{ DT=DT*2; });
-  $('#tile'   ).on('click',(ev)=>{ ev.stopPropagation(); tile();        });
-  $('#stacked').on('click',(ev)=>{ ev.stopPropagation(); stackedView(); });
-  $('#nstacked').on('click',(ev)=>{ ev.stopPropagation(); niceStackView(); });
-  $('#topview').on('click',(ev)=>{ ev.stopPropagation(); stdView();     }); 
-  $('body'    ).on('click','circle',(ev)=>{ ev.stopPropagation(); 
-   ///   $('#info').html(report(ev.target)); 
-    console.log(fool=$(ev.target)); // use console to examine foo
-  
-    // array.toString() keeps the ',' but gets rid of the '[' and ']', nuke the ',' w/ .join('')
-    $('#panel').html(div($.map($(ev.target).data('cell').trees,(d)=>div(d.id)).join('')));
-  });  
-
+//================================================================================ ROUTER
+var stream=[];
+var recvr=(s,__,json=JSON.parse(s))=> stream.push(s);  // TBD:  put in array and pull out and play
+var router={  // tbd: cell & link creation and deletion
+  cell_update:(s,__,json=JSON.parse(s))=>{
+    $('.cell_'+json.k).attr({ fill: {placed:'gray',on:'green'}[json.state] });
+  },
+  link_update:(s,__,json=JSON.parse(s))=>{ 
+    $('.link_'+json.id).attr({ stroke: {placed:'gray',on:'black'}[json.state] });
+  },
+  tree_branch:(s,__,json=JSON.parse(s))=>{
+    $('#tile_'+json.treeID+' .link_'+json.linkID).attr({ stroke: 'yellow','stroke-width':7,});
+  }
 };
-
+var pid=setInterval((__,s=stream.shift())=>{
+  s!=undefined && $.map(JSON.parse(s),(s,k)=>{ s.match('3_3_4_7') && console.log(k,s); router[k](s); })
+},100);
+//================================================================================ VIEW
+var model_render=(json,__,tiles,renderGraph)=>{
+	var spacing=30;
+	var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position is based on k
+	var y=   (k)=> (spacing/2)+spacing*row(k); 
+	$('svg').remove();
+	$('body').html('');
+	var svg=SVGnode('svg');
+	$(svg).attr({width:1000, height:1000});
+	$('body').append(svg);
+	renderGraph=(svg,__,$gc,$gl)=>{
+	  $gl=append($(svg),$(SVGnode('g')));
+		json.links.map((d,__,args)=>{ 
+			args=d[0].split('_'); 
+			$gl.append(
+				line($gl,x(args[0]),y(args[0]),x(args[2]),y(args[2]),
+				  {placed:'gray',on:'black'}[d[1]],{placed:1,on:2}[d[1]]).attr('class','link_'+d[0])
+			)
+		});
+		$gc=append($(svg),$(SVGnode('g')));
+		json.cells.map((d)=> $gc.append(
+			$(SVGnode('circle'))
+			  .attr({'class':'cell_'+d[0], cx:x(d[0]),cy:y(d[0]), r:6, fill:{placed:'gray',on:'green'}[d[1]]})
+		));
+		return svg;
+	};
+	
+  var tiles=range(nRow*nCol);
+	tiles.map((d,k,__,i=col(k),j=row(k))=>{ // make a tile for ea cell, put whole graph on ea tile
+	  renderGraph(append($(svg),$(SVGnode('svg'))
+	    .attr({'id':'tile_'+k, width:301, height:301, x:i*(spacing+5)*nCol, y:j*(spacing+5)*nRow})
+	  ));
+	  $('#tile_'+k+' .cell_'+k).attr({ r:9});
+	});
+	tiles.map((d,k,__,i=col(k),j=row(k))=>{ // put a tree on ea tile
+    json.trees[k] && json.trees[k].map((d,__,node)=>{      
+        node=$('#tile_'+k+' .link_'+d)[0];
+        $(node).attr({ stroke:'yellow','stroke-width':7})
+        node.parentElement.appendChild(node);  //  remove and append, so appears on top
+    })
+	});	
+};
 // ========================================================= 
 $(document).ready(function(__,svg,base1,base2){ 
-  layout();
-  configureDataCenter(nCol,nRow);  // API
-  $.map(cells,(d,k)=> $('#content').append(Tile(k)) ); // layer.svg is $('#tile'+k)
-  /*
-  for(var i=cells.length-1; i>=0; i+= -1){
-    $('#content').append(Tile(i)); // layer.svg is $('#tile'+k
-  }
-  */
-  
-  $('#content')
-    .append($(DIV)
-      .attr({'class':"abs baseTile"})
-      .css({ width:wid, height:ht })
-      .append(svg=$(SVGnode('svg')).attr({ width:wid, height:ht, xmlns:svgNS })
-        .append(topLayer=$(SVGnode('g')).attr({ id:"toplayer" }))
-        .append(base1   =$(SVGnode('g')).attr({ id:"base1"    }))
-        .append(base2   =$(SVGnode('g')).attr({ id:"base2"    }))
-      ) 
-     )
-   .append($(DIV)
-      .attr({'class':"abs"})
-      .css({ width:1000, height:ht, position:'relative' }) 
-      .append($(DIV)
-        .attr({id:'connectionTable',position:"relative"})  // abs items positioned wrt a relative 
-      )
-  );
-  renderCells(topLayer);
-  renderLinks(topLayer);
-  
-  tile(); // stdView();
-  $.map($('.tile'),(d,k)=> $(d).css({'z-index':3000-k}));
-  
-  var defs = $(svg[0]).append($(SVGnode('defs')));  // used for making markers
-  
-  more();
-  /*
-  defs.append($(SVGnode('marker').attr({ 
-    id:'marker_arrow',
-    markerHeight:1,
-    markerWidth:1,
-    markerUnits:strokeWidth,
-    orient:'auto',
-    refX:-5,
-    refY:0
-    viewBox:'-5 -5 10 10',
-    .append($(SVGnode('marker').attr( { d:'M 0,0 m -5,-5  L 5,0  L -5,5  Z', fill:'red' }));
-  }));
-  */
+ // controls();
+  model_configure(5,4); 
+  model_render(JSON.parse(model_send()));
+  range(31).map(()=> random(ops)()); // ea op should result in a publish to recvr
+ // model_render(JSON.parse(model_send()));
+  return;
 
-  behavior();
+  more();  // starts event stream
+  var test=(__,s)=> model_render(JSON.parse(model_send())); // get the whole thing and display it
+  var tr=()=> trPtr=setInterval(test,500);  // refresh the whole thing
+  tr();
+  setTimeout(()=>{ console.log(opCnt); clearTimeout(trPtr); },6000); // after 6 sec, 31 ops, freeze the display
 });
-
-
-
-var connectionTable_render=(__,sz)=>{
-  sz=Math.floor(parseInt($('#connectionTable').parent().css('height').slice(0,-2))/cells.length);
-  $('.foobar').remove();
-  $.map(cells,(d,k)=>{
-    $('#connectionTable').append($(DIV)
-      .attr({'class':'abs foobar'})
-      .css({   left:k*sz, top: k*sz, width:sz-1, height:sz-1, background:(d.state=='on') ? 'green':'black' })
-    );
-    $.map(d.trees,(tree,kk)=> 
-      $('#connectionTable').append($(DIV)
-        .attr({'class':'abs foobar'})
-        .css({ left:k*sz, top:kk*sz, width:sz-1, height:sz-1, background:'orange'                          })
-      )
-    );
-  })
-};
-//setInterval(connectionTable_render,1000);
-
-
 </script>
 <pre>
-========================= code snippets form prev version of code:
- Cell.state   *unplaced,placed,on
- Link.state   *unplaced connected1 connected2 placed on  // on trigger discover
-  
-triggerDiscover belongs on server
-
-var showTrees =(dt)=> $.map(cells,(d,k)=> setTimeout(()=> hiliteTree(k),k*dt) );
-var treeCounts=()=> $.map(cells,(d,k)=> console.log(k,$.map(d.trees,(d,k)=> k).length) );
-
-var renderLinks=(svg)=> $.map(links,(d,k)=> $('#toplayer').append( d.view       ) );
-
-var ops=[
-  (__,d=random(links))=>{ cnt1++; return d.state!=d.setState('connected1'); }, // may trigger placed
-  (__,d=random(links))=>{ cnt1++; return d.state!=d.setState('connected2'); }, // may trigger placed
-  (__,d=random(cells))=>{ cnt2++; return d.state!=d.setState('placed'    ); },
-  (__,d=random(cells))=>{ cnt3++; return d.state!=d.setState('on'        ); }  // may trigger 'on' of links
-];
-
-var attempt=(__,dt)=> paused ?  50 : (random(ops)() ?  DT : 0) ;  // I could inline w/ next line
-var more=()=> setTimeout(more,attempt()); 
-
-tbd:
- 8 ports; separate out code; timeline and spaceout
+bug: why are some branches turning black - look at the stream before it gets played
+tbd: events, stream of ev, timeline and spaceout 
 </pre>

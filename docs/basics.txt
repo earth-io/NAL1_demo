@@ -1,17 +1,21 @@
 GIT ===========
 github  earth.org
-
+ gcl = git clone
+ gpl = git pull
+  gs = git status
   ga = git add
+  gc = git commit
+  gp = git push
 
   gb = git branch
-
+  
  gco = git checkout
 
  gcp = git cherry-pick
 
- gcl = git clone
 
-  gc = git commit
+
+
 
   gd = git diff
 
@@ -39,12 +43,49 @@ gsdr = git stash drop # stash@{n}
 
 gspp = git stash pop 
 
-  gs = git status
+
 
 ghist= git log --pretty=format: %h %ad | %s%d [%an] --graph --date=short
 
 gcommitters= git log --pretty=format: %an | sort -u --
 
+
+https://guides.github.com/introduction/flow/  not very good
+http://rogerdudler.github.io/git-guide/
+https://www.tutorialspoint.com/git/git_quick_guide.htm  // not great, branch info is 80% down
+
+
+git pull  or git clone
+create or mod files
+git add these file
+git commit -m 'a changed some files'
+git push
+
+git branch
+git branch foobranch
+git checkout foobranch
+or git checkout -b foobranch // create and switch to
+git branch -D foobranch
+
+
+
+
+git status
+git add client/demo.html 
+git add client/server.js 
+git add docs/basics.txt 
+git status
+git commit -m 'simple tiled view created for use as sample client'
+git push
+
+merging
+  
+
+working dir  --(add)--> staging --(commit)--> repro
+master branch
+head   // HEAD is a pointer, which always points to the latest commit in the branch. 
+
+grep -nr  foo  *
 
 NODEJS ===========
   https://nodejs.org/en/docs/guides/getting-started-guide/

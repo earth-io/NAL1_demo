@@ -1,8 +1,42 @@
+//================================================================================ lib
+/*
+stackoverflow.com/questions/424292/seedable-javascript-random-number-generator
+stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
+*/
+var randumb=((__,seed=1)=>  // gives the same series of 'random' numbers every time
+  (__,x=Math.sin(seed++)*10000)=> x - Math.floor(x)
+)();
+//var Math_random=Math.random(); // truly random
+var Math_random=randumb;  // same random set of nubers every time
+var random= (arr)=> arr[Math.floor(arr.length*Math_random())]; // get a random item from an array 
+
+var opCnt=0;
+var ops=[
+  (__,d=random(cells))=>{ opCnt+=1;; return d.state!=d.setState('placed'    ); },
+  (__,d=random(cells))=>{ opCnt+=1;; return d.state!=d.setState('on'        ); }  // may trigger 'on' of links
+];
+
+var append=($p,$c)=>{ $p.append($c); return $c; };
+var add=(o,k,v)=> o[k]==undefined ? o[k]=[v]  : o[k].push(v);
+var range=(n)=> [...Array(n).keys()];
+var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
+var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
+var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
+  aLine=$(SVGnode('line'))
+  parent.append(aLine.attr({ x1:x1, y1:y1, x2:x2, y2:y2, stroke:stroke, "stroke-width":width }));
+  return aLine;
+};
+var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
+//================================================================================ data
 var cells=[],cellHash={}, hashCell=(cell)=> cellHash[row(cell.k)+'_'+col(cell.k)]=cell;
 var getCell= (row,col)=> cellHash[row+'_'+col];
 var links=[],linkHash={}; 
 var linkID=(c1,p1,c2,p2)=> (c1.id<c2.id) ? c1.id+'_'+p1+'_'+c2.id+'_'+p2 : c2.id+'_'+p2+'_'+c1.id+'_'+p1;
-var nRow,nCol;
+
+var spacing=38;
+var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position
+var y=   (k)=> (spacing/2)+spacing*row(k);  
+var nCol, nRow;  // 5 x 4  or  8 x 12
 /* 
 	 8  1  2
 		\ | /
@@ -11,13 +45,15 @@ var nRow,nCol;
 	 6  5  4   
 
  p2=(p1)=>  p1<5 ? p1+4 : p1-4;
- d3.range(0,9).map(p2)  // [4, 5, 6, 7, 8, 1, 2, 3, 4]  note: we never call p2 w/ 0
+ range(8).map(p2)  // [4, 5, 6, 7, 8, 1, 2, 3, 4]  note: we never call p2 w/ 0
 */
 
 // configureDataCenter defines col&row
 var row; // col(k)=> Math.floor(k/nCol);
 var col; // row(k)=> k%nCol;
-var configureDataCenter=(nCol=nCol_,nRow=nRow_,__,configureLinks)=>{  // API
+var model_configure=(nCol_,nRow_,__,configureLinks)=>{  // API
+  nCol=nCol_;
+  nRow=nRow_;
   col= (k)=> k%nCol;              // GLOBAL, used by view
   row= (k)=> Math.floor(k/nCol);  // GLOBAL
   configureLinks= (cells)=> {
@@ -40,29 +76,16 @@ var configureDataCenter=(nCol=nCol_,nRow=nRow_,__,configureLinks)=>{  // API
 		});
 	};
 
-  [...Array(nCol*nRow).keys()].map((d,k)=> cells.push(Cell(k)));
+  range(nCol*nRow).map((d,k)=> cells.push(Cell(k)));
   $.map(cells,(d)=> hashCell(d));
   configureLinks(cells);
   
 // start with all machines wired
-  $.map(cells,(d)=> d.setState('placed'    ));
+  $.map(cells,(d)=> d.setState('placed'    )); // there is a bug in my link fsm
   $.map(links,(d)=> d.setState('connected1'));
-  $.map(links,(d)=> d.setState('connected2'));  
+  $.map(links,(d)=> d.setState('connected2')); 
+  console.log('fini configuring'); // links.map((d)=> d.state)  everything is 'placed'
 };
-
-//================================================================================ lib
-var append=($p,$c)=>{ $p.append($c); return $c; };
-var add=(o,k,v)=> o[k]==undefined ? o[k]=[v]  : o[k].push(v);
-var range=(n)=> [...Array(n).keys()];
-/* this code is defined elsewhere,  but is used in the example
-	var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
-	var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
-	var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
-		aLine=$(SVGnode('line'))
-		parent.append(aLine.attr({ x1:x1, y1:y1, x2:x2, y2:y2, stroke:stroke, "stroke-width":width }));
-		return aLine;
-	};
-*/
 //================================================================================ api
 var extractTrees=(cells,links,__,trees={})=>{  // ea tree is a list of branches
   // the cell.ports have LOV knowledge of trees,  we must convert to GEV
@@ -73,7 +96,7 @@ var extractTrees=(cells,links,__,trees={})=>{  // ea tree is a list of branches
   )
   return trees;
 };
-var sendModel=()=>
+var model_send=()=>
   JSON.stringify({
     nRow:nRow,
     nCol:nCol,
@@ -82,55 +105,6 @@ var sendModel=()=>
     trees:extractTrees(cells,links),        // treeID:[linkID,.. ]
   })
 ;
-//================================================================================ VIEW example
-var clientViewFromModelExample=(s,__,render,json=JSON.parse(s))=>{
-	var spacing=30;
-	var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position is based on k
-	var y=   (k)=> (spacing/2)+spacing*row(k); 
-	$('svg').remove();
-	$('body').html('');
-	var svg=SVGnode('svg');
-	$(svg).attr({width:1000, height:1000});
-	$('body').append(svg);
-	renderGraph=(svg,__,$gc,$gl)=>{
-	  $gl=append($(svg),$(SVGnode('g')));
-		json.links.map((d,__,args)=>{ 
-			args=d[0].split('_'); 
-			$gl.append(
-				line($gl,x(args[0]),y(args[0]),x(args[2]),y(args[2]),{placed:'gray',on:'black'}[d[1]],{placed:1,on:2}[d[1]]).attr('class',d[0])
-			)
-		});
-		$gc=append($(svg),$(SVGnode('g')));
-		json.cells.map((d)=> $gc.append(
-			$(SVGnode('circle')).attr({'class':'cell_'+d[0], cx:x(d[0]),cy:y(d[0]), r:6, fill:{placed:'gray',on:'green'}[d[1]]})
-		));
-		return svg;
-	};
-	
-
-	range(nRow*nCol).map((d,k,__,i=col(k),j=row(k))=>{
-	  renderGraph(append($(svg),$(SVGnode('svg')).attr({'id':'tile_'+k, width:301, height:301, x:i*(spacing+5)*nCol, y:j*(spacing+5)*nRow})));
-	  $('#tile_'+k+' .cell_'+k).attr({ r:9});
-	});
-	    
-	range(nRow*nCol).map((d,k,__,i=col(k),j=row(k))=>{
-  
-    json.trees[k] && json.trees[k].map((d,__,node)=>{      
-        node=$('#tile_'+k+' .'+d)[0];
-        $(node).attr({ stroke:'yellow','stroke-width':7, zindex:4})
-        node.parentElement.appendChild(node);  //  remove and append, so appears on top
-    })
-    
-	});	
-};
-
-
-var test=(__,s)=> clientViewFromModelExample(sendModel()); // get the whole thing and display it
-var tr=()=> trPtr=setInterval(test,500);  // refresh the whole thing
-tr();
-setTimeout(()=> clearTimeout(trPtr),6000); // after 6 seconds, freeze the display
-
-
 //================================================================================ MODEL - CELL
 var maxCnt=0;   // max hop count
 var treeAdds=0; // how many branches have been created
@@ -174,17 +148,22 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
         self.update(); 
         self.notifyPorts(); 
       }
+      if(state!=state0){ 
+        var s
+        recvr(s= JSON.stringify({
+          cell_update:(JSON.stringify({ k:self.k, state:self.state, }) ),
+        })  );
+        s.match('3_3_4_7') && console.log('sending',s);
+      }; // publish
       return self.state; 
     },
     propagateTreeOnPort:(treeID,port_out,cnt,__,link,otherCell,otherPort)=>{ 
-      if(self.ports[port_out].trees[treeID]){ return; }  // already sent  GGGG
-      maxCnt= cnt>maxCnt ? cnt : maxCnt;
-      // only called when self.ports[port_out].link.state='on'  DDDD
       link=self.ports[port_out].link;
-    //if(link==null || link.state!='on'){ alert('oops'); return; } // redundant ck DDDD
-      
+      if(link.state!='on'){ return; } // redundant, only called when self.ports[port_out].link.state='on' 
+      if(self.ports[port_out].trees[treeID]){ return; }  // already sent  GGGG
       otherCell=getOtherCell(link);
       otherPort=getOtherPort(link);
+      maxCnt= cnt>maxCnt ? cnt : maxCnt;
             
       if(otherCell.trees[treeID]==undefined){         
         link_observers.update(link,treeID,'hilitePropagation',
@@ -194,16 +173,20 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
         treeAdds+=1;  //  25x(25-1)  the tree rooted on ea cell must be send to all the other cells
         
         otherCell.update();
-      //link_observers.update(link,treeID,'tree_branch',{ x1:self.x, y1:self.y, x2:otherCell.x, y2:otherCell.y });  
-        link_observers.update(link,treeID,'tree_branch',branchEndPtsR(self,port_out,otherCell,otherPort));            
-      //otherCell.update();  // putting it second partially shades the link, and is an indicator of directionality
 
         self     .ports[port_out ].trees[treeID]=true; // GGGG
         otherCell.ports[otherPort].trees[treeID]=true; // no need to echo
         
+        var s;
+        recvr(s= JSON.stringify({
+          tree_branch:(JSON.stringify({ treeID:treeID, linkID:link.id, state:link.state }) ),
+        })  );
+        s.match('3_3_4_7') && console.log('sending',s);
+        
         $.map(otherCell.ports,(port,k,__)=>{ // send out
           if(port.link && port.link.state=='on' && port!=otherPort){
-            setTimeout(()=>otherCell.propagateTreeOnPort(treeID,k,cnt+1),300); // zzzz
+          //setTimeout(()=>otherCell.propagateTreeOnPort(treeID,k,cnt+1),300); // zzzz
+            otherCell.propagateTreeOnPort(treeID,k,cnt+1); // zzzz
           }
         });
       }
@@ -244,8 +227,8 @@ var Link=function(cell1,port1,cell2,port2,__,self){
     cell2Port:port2,
 
     state:'unplaced', // *unplaced connected1 connected2 placed on
-    setState:(state)=>{   // FSM  needed - suggestions please
-    
+    setState:(state,__,state0)=>{   // FSM  needed - suggestions please
+      state0=self.state;
     /* FSM logic
     
     unplaced  ____> connected1 __(connect2)______> placed __(both cells on **)__> on
@@ -289,6 +272,11 @@ var Link=function(cell1,port1,cell2,port2,__,self){
         }
         self.triggerDiscover();
       }
+      if(state!=state0){ 
+        recvr( JSON.stringify({
+          link_update:(JSON.stringify({ id:self.id, state:self.state, }) ),
+        })  ); 
+      }; // publish
       return self.state; 
     },
     update:()=>{  // when cells change state, we get this method called
