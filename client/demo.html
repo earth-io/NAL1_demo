@@ -71,7 +71,7 @@ var router={  // tbd: cell & link creation and deletion
   }
 };
 var pid=setInterval((__,s=stream.shift())=>{
-  s!=undefined && $.map(JSON.parse(s),(s,k)=>{ s.match('3_3_4_7') && console.log(k,s); router[k](s); })
+  s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); })
 },100);
 //================================================================================ VIEW
 var spacing=38;

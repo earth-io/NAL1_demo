@@ -225,7 +225,6 @@ var Link=function(cell1,port1,cell2,port2,__,self){
     cell1Port:port1, 
     cell2:cell2, 
     cell2Port:port2,
-
     state:'unplaced', // *unplaced connected1 connected2 placed on
     setState:(state,__,state0)=>{  
       state0=self.state;
@@ -233,6 +232,14 @@ var Link=function(cell1,port1,cell2,port2,__,self){
     
       unplaced  ____> connected1 __(connect2)______> placed __(both cells on **)__> on
                  \__> connected2 __(connect1)__/
+                 
+      because setState can be called recursively,  recvr may be called multiple times
+      in particular, when command 'connected2' when state=='connected' you return with 'placed'
+       because setState('placed') is called as an 'innerFn'
+       
+      on the client you will get multiple 'placed' notifications,  
+       and because 'innerFn' will send a recvr and kick off triggeDiscover be for returning to the original call,
+       the view must know that is will get 'on' notifications after is has displayed trees.
                  
       ** link needs to listen to cells  // implemented by cell sending .update() to links
     
@@ -242,18 +249,18 @@ var Link=function(cell1,port1,cell2,port2,__,self){
           ({
             connected1:({ 
               unplaced:()=>{ 
-                if(self.cell1.state!="unplaced"){ self.cell1.setPort(self.cell1Port,self); self.state='connected1'; }
+                if(cell1.state!="unplaced"){ cell1.setPort(port1,self); self.state='connected1'; }
               },
               connected2:()=>{ 
-                if(self.cell1.state!="unplaced"){ self.cell1.setPort(self.cell1Port,self); self.setState('placed'); }
+                if(cell1.state!="unplaced"){ cell1.setPort(port1,self); self.setState('placed'); }
               },
             }),
             connected2:({ 
               unplaced:()=>{ 
-                if(self.cell2.state!="unplaced"){ self.cell2.setPort(self.cell2Port,self); self.state='connected1'; }
+                if(cell2.state!="unplaced"){ cell2.setPort(port2,self); self.state='connected1'; }
               },
               connected1:()=>{ 
-                if(self.cell2.state!="unplaced"){ self.cell2.setPort(self.cell2Port,self); self.setState('placed'); }
+                if(cell2.state!="unplaced"){ cell2.setPort(port2,self); self.setState('placed'); }
               },
             }),          
             placed:({
@@ -262,17 +269,16 @@ var Link=function(cell1,port1,cell2,port2,__,self){
             }),   
             on:({ 
               placed:()=>{ 
-                if(self.cell1.state=="on" || self.cell2.state=="on"){ self.state='on'; self.triggerDiscover(); }  
+                if(cell1.state=="on" || cell2.state=="on"){ self.state='on'; self.triggerDiscover(); }  
               }
             }), 
           })[state][self.state]();
         } 
         catch (error) {
-          console.log(state,'to',self.state,'not defined');
+        //console.log(state,'to',self.state,'not defined');
         }
       }
       if(state!=state0){ 
-      //  console.log('link req',self.id,state0,' req:',state,self.state);
         recvr( JSON.stringify({
           link_update:(JSON.stringify({ id:self.id, state:self.state, state0:state0, stateReq:state}) ),
         })  ); 
