@@ -49,7 +49,7 @@ var nCol, nRow;  // 5 x 4  or  8 x 12
 // configureDataCenter defines col&row
 var row; // col(k)=> Math.floor(k/nCol);
 var col; // row(k)=> k%nCol;
-var model_configure=(nCol_,nRow_,__,configureLinks)=>{  // API
+var model_configure=(nCol_,nRow_,__,configureLinks)=>{  // initialization
   nCol=nCol_;
   nRow=nRow_;
   col= (k)=> k%nCol;              // GLOBAL, used by view
@@ -79,7 +79,7 @@ var model_configure=(nCol_,nRow_,__,configureLinks)=>{  // API
   configureLinks(cells);
   
 // start with all machines wired
-  _.map(cells,(d)=> d.setState('placed'    )); // there is a bug in my link fsm
+  _.map(cells,(d)=> d.setState('placed'    ));
   _.map(links,(d)=> d.setState('connected1'));
   _.map(links,(d)=> d.setState('connected2')); 
   console.log('fini configuring'); // links.map((d)=> d.state)  everything is 'placed'
@@ -227,54 +227,54 @@ var Link=function(cell1,port1,cell2,port2,__,self){
     cell2Port:port2,
 
     state:'unplaced', // *unplaced connected1 connected2 placed on
-    setState:(state,__,state0)=>{   // FSM  needed - suggestions please
+    setState:(state,__,state0)=>{  
       state0=self.state;
-    /* FSM logic
+      /* FSM logic
     
-    unplaced  ____> connected1 __(connect2)______> placed __(both cells on **)__> on
-               \__> connected2 __(connect1)__/
+      unplaced  ____> connected1 __(connect2)______> placed __(both cells on **)__> on
+                 \__> connected2 __(connect1)__/
                  
-    ** link needs to listen to cells  // implemented by cell sending .update() to links
+      ** link needs to listen to cells  // implemented by cell sending .update() to links
     
-    */
-      if(state=='connected1' && self.cell1.state!="unplaced" && 
-         (self.state=="unplaced" || self.state=="connected2")  ){
-        self.cell1.setPort(self.cell1Port,self);
-      //self.cell1.ports[self.cell1Port].link=self;
-        if(self.state=="unplaced"){
-          self.state='connected1'; //v self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);  
-        }    
-        else if(self.state=='connected2'){
-          self.setState('placed');
+      */
+      if(state!=self.state){
+        try{
+          ({
+            connected1:({ 
+              unplaced:()=>{ 
+                if(self.cell1.state!="unplaced"){ self.cell1.setPort(self.cell1Port,self); self.state='connected1'; }
+              },
+              connected2:()=>{ 
+                if(self.cell1.state!="unplaced"){ self.cell1.setPort(self.cell1Port,self); self.setState('placed'); }
+              },
+            }),
+            connected2:({ 
+              unplaced:()=>{ 
+                if(self.cell2.state!="unplaced"){ self.cell2.setPort(self.cell2Port,self); self.state='connected1'; }
+              },
+              connected1:()=>{ 
+                if(self.cell2.state!="unplaced"){ self.cell2.setPort(self.cell2Port,self); self.setState('placed'); }
+              },
+            }),          
+            placed:({
+              connected1:()=>{ self.state='placed'; self.setState('on'); },
+              connected2:()=>{ self.state='placed'; self.setState('on'); },          
+            }),   
+            on:({ 
+              placed:()=>{ 
+                if(self.cell1.state=="on" || self.cell2.state=="on"){ self.state='on'; self.triggerDiscover(); }  
+              }
+            }), 
+          })[state][self.state]();
         } 
-      }
- 
-      if(state=='connected2' && self.cell2.state!="unplaced" && 
-         (self.state=="unplaced" || self.state=="connected1")  ){
-        self.cell2.setPort(self.cell2Port,self);
-      //self.cell2.ports[self.cell2Port].link=self;
-        if(self.state=="unplaced"){
-          self.state='connected2'; //v self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);  
-        }    
-        else if(self.state=='connected1'){
-          self.setState('placed');
-        } 
-      }     
-    
-      if(state=='placed'){ 
-        self.state='placed'; //v self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);      
-        if(self.cell1.state=='on' && self.cell2.state=='on'){ self.setState('on'); } // state change zzzz hidden away
-      }
-      if(state=='on'){ 
-        self.state='on'; //v self.view.attr(self.attr[self.state]); 
-        if(self.cell1.state!="on" || self.cell2.state!="on"){ 
-          console.log('error - trying to set link to on when an endpt cell is not on'); 
+        catch (error) {
+          console.log(state,'to',self.state,'not defined');
         }
-        self.triggerDiscover();
       }
       if(state!=state0){ 
+      //  console.log('link req',self.id,state0,' req:',state,self.state);
         recvr( JSON.stringify({
-          link_update:(JSON.stringify({ id:self.id, state:self.state, }) ),
+          link_update:(JSON.stringify({ id:self.id, state:self.state, state0:state0, stateReq:state}) ),
         })  ); 
       }; // publish
       return self.state; 
@@ -297,13 +297,15 @@ var Link=function(cell1,port1,cell2,port2,__,self){
       cell1.broadcastTrees(self.cell1Port);
       cell2.broadcastTrees(self.cell2Port);
     },
+    /*
     attr:{  // view
       unplaced  :{ stroke:'gray'   },
       connected1:{ stroke:'black'  },
       connected2:{ stroke:'black'  },
       placed    :{ stroke:'black'  },  // yellow
       on        :{ stroke:'green'  }
-    },                   
+    },  
+    */                 
   };
   /*
   self.view=$(SVGnode('line')).attr(linkEndPts(self)).attr({'class':self.id})
