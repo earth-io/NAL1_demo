@@ -53,8 +53,7 @@ var more=()=> setTimeout(more,attempt());  // attempt could be inlined, attempt 
 
 //================================================================================ ROUTER
 var linksWhichAreOn={};  // debug
-var stream=[];
-var recvr=(s,__,json=JSON.parse(s))=> stream.push(s);  // TBD:  put in array and pull out and play
+
 var router={  // tbd: cell & link creation and deletion
   cell_update:(s,__,json=JSON.parse(s))=>{
     $('.cell_'+json.k).attr({ fill: {placed:'gray',on:'green'}[json.state] });
@@ -70,9 +69,27 @@ var router={  // tbd: cell & link creation and deletion
     $('#tile_'+json.treeID+' .link_'+json.linkID).attr({ stroke: 'yellow','stroke-width':7,});
   }
 };
-var pid=setInterval((__,s=stream.shift())=>{
-  s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); })
+
+var stream=[],sp=0;
+var recvr=(s,__,json=JSON.parse(s))=> stream.push(s);  // TBD:  put in array and pull out and play
+var pid=setInterval((__,s=stream[sp])=>{
+  s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })
 },100);
+/*
+replay stream:
+  $('body').html('')
+  model_configure(5,4); 
+  linksWhichAreOn={};
+  model_render(JSON.parse(model_send()));  // sream is 240 in length
+  sp=0;
+
+	var pid=setInterval((__,s=stream[sp])=>{
+		s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })
+	},100);  
+*/
+
+
+
 //================================================================================ VIEW
 var spacing=38;
 var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position
@@ -125,6 +142,8 @@ $(document).ready(function(__,svg,base1,base2){
  // controls();
   model_configure(5,4); 
   model_render(JSON.parse(model_send()));
+  sp=stream.length;
+  stream.map((s)= s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; }) );
   
   console.log(stream.filter((s)=> s.match('3_3_4_7')));
   console.log(stream.length,'unplaced links',links.filter((d)=> d.state!='placed').length);
