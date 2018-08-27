@@ -1,33 +1,26 @@
 var http = require('http');
 var fs = require('fs');
 
-var jsdom = require("jsdom");
-const { JSDOM } = jsdom;
-const { window } = new JSDOM();
-const { document } = (new JSDOM('')).window;
-global.document = document;
-
-var $ = jQuery = require('jquery')(window);
+// Loading socket.io
+const socketIo = require("socket.io");
+const _ = require("lodash");
 
 // Loading the file index.html displayed to the client
 var server = http.createServer(function(req, res) {
-    fs.readFile('./getServerState.html', 'utf-8', function(error, content) {
+    fs.readFile('./server/getServerState.html', 'utf-8', function(error, content) {
         res.writeHead(200, {"Content-Type": "text/html"});
         res.end(content);
     });
 });
 
-// Loading socket.io
-const socketIo = require("socket.io");
-//var io = socketIo.listen(server);
-
-let counter = 0;
-let myCounter = 0;
-
 function getFormattedTime(i) {
 	var d = new Date();
         return d.toLocaleTimeString();;
     }
+
+
+let myCounter = 0;
+const io = socketIo(server);
 
 let myArr = []
 setInterval(function () {
@@ -38,10 +31,6 @@ setInterval(function () {
     }, 2500);
 
 
-const io = socketIo(server);
-
-
-let increment = 0;
 io.sockets.on('connection', function (socket, username) {
     socket.on('getFullState', function (message) {
         // The username of the person who clicked is retrieved from the session variables
@@ -59,7 +48,13 @@ io.sockets.on('connection', function (socket, username) {
 
 
 
-///////////////
+// ========================================================= RENDER (the cells)
+var cell_observers={  
+  update:(cell)=>{}
+};
+var link_observers={  
+  update:(link,treeID,op,data)=>{}
+};
 //================================================================================ lib
 /*
 stackoverflow.com/questions/424292/seedable-javascript-random-number-generator
@@ -93,18 +88,19 @@ var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
 var cells=[],cellHash={}, hashCell=(cell)=> cellHash[row(cell.k)+'_'+col(cell.k)]=cell;
 var getCell= (row,col)=> cellHash[row+'_'+col];
 var links=[],linkHash={}; 
-var linkID=(c1,p1,c2,p2)=> (c1.id<c2.id) ? c1.id+'_'+p1+'_'+c2.id+'_'+p2 : c2.id+'_'+p2+'_'+c1.id+'_'+p1;
+linkID=(c1,p1,c2,p2) => (c1.id<c2.id) ? [c1.id, p1, c2.id, p2].join('_') : [c2.id, p2, c1.id, p1].join('_');
+
 
 var spacing=38;
 var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position
 var y=   (k)=> (spacing/2)+spacing*row(k);  
 var nCol, nRow;  // 5 x 4  or  8 x 12
 /* 
-	 8  1  2
-		\ | /
-	7 - 0 - 3  there is a spl port (I put in the center, numbered '0')
-		/ | \
-	 6  5  4   
+   8  1  2
+    \ | /
+  7 - 0 - 3  there is a spl port (I put in the center, numbered '0')
+    / | \
+   6  5  4   
 
  p2=(p1)=>  p1<5 ? p1+4 : p1-4;
  range(8).map(p2)  // [4, 5, 6, 7, 8, 1, 2, 3, 4]  note: we never call p2 w/ 0
@@ -113,39 +109,39 @@ var nCol, nRow;  // 5 x 4  or  8 x 12
 // configureDataCenter defines col&row
 var row; // col(k)=> Math.floor(k/nCol);
 var col; // row(k)=> k%nCol;
-var model_configure=(nCol_,nRow_,__,configureLinks)=>{  // API
+var model_configure=(nCol_,nRow_,__,configureLinks)=>{  // initialization
   nCol=nCol_;
   nRow=nRow_;
   col= (k)=> k%nCol;              // GLOBAL, used by view
   row= (k)=> Math.floor(k/nCol);  // GLOBAL
   configureLinks= (cells)=> {
-		$.map(cells,(c1,__,c2,mkLinkWhenDoesNotExist)=> { 
-			mkLinkWhenDoesNotExist= (c1,p1,c2,__,p2=(p1)=>  p1<5 ? p1+4 : p1-4,lid,link)=>{ 
-				lid=linkID(c1,p1,c2,p2(p1));
-				if(linkHash[lid]==undefined){ 
-					link=Link(c1,p1,c2,p2(p1)); 
-					links.push(link); 
-					linkHash[lid]=link;
-				} 
-			};
-			// for ea port: find its potential neighbor cell; make a link if it does not already exist
-			if(c2=getCell(row(c1.k)+0,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,3,c2); } // right
-			if(c2=getCell(row(c1.k)-1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,1,c2); } // above
-			if(c2=getCell(row(c1.k)+0,col(c1.k)-1)){ mkLinkWhenDoesNotExist(c1,7,c2); } // left
-			if(c2=getCell(row(c1.k)+1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,5,c2); } // below
-			if(c2=getCell(row(c1.k)+1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,4,c2); } // bot rt   diag
-			if(c2=getCell(row(c1.k)-1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,2,c2); } // top left diag
-		});
-	};
+    _.map(cells,(c1,__,c2,mkLinkWhenDoesNotExist)=> { 
+      mkLinkWhenDoesNotExist= (c1,p1,c2,__,p2=(p1)=>  p1<5 ? p1+4 : p1-4,lid,link)=>{ 
+        lid=linkID(c1,p1,c2,p2(p1));
+        if(linkHash[lid]==undefined){ 
+          link=Link(c1,p1,c2,p2(p1)); 
+          links.push(link); 
+          linkHash[lid]=link;
+        } 
+      };
+      // for ea port: find its potential neighbor cell; make a link if it does not already exist
+      if(c2=getCell(row(c1.k)+0,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,3,c2); } // right
+      if(c2=getCell(row(c1.k)-1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,1,c2); } // above
+      if(c2=getCell(row(c1.k)+0,col(c1.k)-1)){ mkLinkWhenDoesNotExist(c1,7,c2); } // left
+      if(c2=getCell(row(c1.k)+1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,5,c2); } // below
+      if(c2=getCell(row(c1.k)+1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,4,c2); } // bot rt   diag
+      if(c2=getCell(row(c1.k)-1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,2,c2); } // top left diag
+    });
+  };
 
   range(nCol*nRow).map((d,k)=> cells.push(Cell(k)));
-  $.map(cells,(d)=> hashCell(d));
+  _.map(cells,(d)=> hashCell(d));
   configureLinks(cells);
   
 // start with all machines wired
-  $.map(cells,(d)=> d.setState('placed'    )); // there is a bug in my link fsm
-  $.map(links,(d)=> d.setState('connected1'));
-  $.map(links,(d)=> d.setState('connected2')); 
+  _.map(cells,(d)=> d.setState('placed'    ));
+  _.map(links,(d)=> d.setState('connected1'));
+  _.map(links,(d)=> d.setState('connected2')); 
   console.log('fini configuring'); // links.map((d)=> d.state)  everything is 'placed'
 };
 //================================================================================ api
@@ -206,7 +202,7 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
       { link:null, trees:{} },
       { link:null, trees:{} }
     ],    // r t l b
-    notifyPorts:()=> $.map(self.ports,(d)=> (d.link && d.link.update())), // called by .setState
+    notifyPorts:()=> _.map(self.ports,(d)=> (d.link && d.link.update())), // called by .setState
     setPort:(porti,link)=>{ self.ports[porti].link=link; },
     trees:{ /* k:{ id:k, in:null, out:{}, pruned:{} } */},
     setState:(state,__,state0)=>{   // FSM  needed - suggestions please  sends .update msg to links
@@ -255,7 +251,7 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
         })  );
         s.match('3_3_4_7') && console.log('sending',s);
         
-        $.map(otherCell.ports,(port,k,__)=>{ // send out
+        _.map(otherCell.ports,(port,k,__)=>{ // send out
           if(port.link && port.link.state=='on' && port!=otherPort){
           //setTimeout(()=>otherCell.propagateTreeOnPort(treeID,k,cnt+1),300); // zzzz
             otherCell.propagateTreeOnPort(treeID,k,cnt+1); // zzzz
@@ -276,15 +272,17 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
     },
     broadcastTrees:(port_out,__)=>{  // called by Link.triggerDiscover when a link turns 'on'
       if(self.ports[port_out].link && self.ports[port_out].link.state=='on'){  // always
-        $.map(self.trees,(tree)=> self.propagateTreeOnPort(tree.id,port_out,0) );
+        _.map(self.trees,(tree)=> self.propagateTreeOnPort(tree.id,port_out,0) );
       }
     },  
     update:()=>{ cell_observers.update(self); }, // called by .setState
+    /*
     attr:{  // view
       unplaced:{cx:x(k),cy:y(k),r:8, z:k, fill:'gray'   },
       placed  :{cx:x(k),cy:y(k),r:8, z:k, fill:'black' },
       on      :{cx:x(k),cy:y(k),r:8, z:k, fill:'green'  }
     },
+    */
   }
   return self;
 };
@@ -297,56 +295,63 @@ var Link=function(cell1,port1,cell2,port2,__,self){
     cell1Port:port1, 
     cell2:cell2, 
     cell2Port:port2,
-
+    
     state:'unplaced', // *unplaced connected1 connected2 placed on
-    setState:(state,__,state0)=>{   // FSM  needed - suggestions please
+    setState:(state,__,state0)=>{  
       state0=self.state;
-    /* FSM logic
+      /* FSM logic
     
-    unplaced  ____> connected1 __(connect2)______> placed __(both cells on **)__> on
-               \__> connected2 __(connect1)__/
+      unplaced  ____> connected1 __(connect2)______> placed __(both cells on **)__> on
+                 \__> connected2 __(connect1)__/
                  
-    ** link needs to listen to cells  // implemented by cell sending .update() to links
+      because setState can be called recursively,  recvr may be called multiple times
+      in particular, when command 'connected2' when state=='connected' you return with 'placed'
+       because setState('placed') is called as an 'innerFn'
+       
+      on the client you will get multiple 'placed' notifications,  
+       and because 'innerFn' will send a recvr and kick off triggeDiscover be for returning to the original call,
+       the view must know that is will get 'on' notifications after is has displayed trees.
+                 
+      ** link needs to listen to cells  // implemented by cell sending .update() to links
     
-    */
-      if(state=='connected1' && self.cell1.state!="unplaced" && 
-         (self.state=="unplaced" || self.state=="connected2")  ){
-        self.cell1.setPort(self.cell1Port,self);
-      //self.cell1.ports[self.cell1Port].link=self;
-        if(self.state=="unplaced"){
-          self.state='connected1'; //v self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);  
-        }    
-        else if(self.state=='connected2'){
-          self.setState('placed');
+      */
+      if(state!=self.state){
+        try{
+          ({
+            connected1:({ 
+              unplaced:()=>{ 
+                if(cell1.state!="unplaced"){ cell1.setPort(port1,self); self.state='connected1'; }
+              },
+              connected2:()=>{ 
+                if(cell1.state!="unplaced"){ cell1.setPort(port1,self); self.setState('placed'); }
+              },
+            }),
+            connected2:({ 
+              unplaced:()=>{ 
+                if(cell2.state!="unplaced"){ cell2.setPort(port2,self); self.state='connected1'; }
+              },
+              connected1:()=>{ 
+                if(cell2.state!="unplaced"){ cell2.setPort(port2,self); self.setState('placed'); }
+              },
+            }),          
+            placed:({
+              connected1:()=>{ self.state='placed'; self.setState('on'); },
+              connected2:()=>{ self.state='placed'; self.setState('on'); },          
+            }),   
+            on:({ 
+              placed:()=>{ 
+                if(cell1.state=="on" || cell2.state=="on"){ self.state='on'; self.triggerDiscover(); }  
+              }
+            }), 
+          })[state][self.state]();
         } 
-      }
- 
-      if(state=='connected2' && self.cell2.state!="unplaced" && 
-         (self.state=="unplaced" || self.state=="connected1")  ){
-        self.cell2.setPort(self.cell2Port,self);
-      //self.cell2.ports[self.cell2Port].link=self;
-        if(self.state=="unplaced"){
-          self.state='connected2'; //v self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);  
-        }    
-        else if(self.state=='connected1'){
-          self.setState('placed');
-        } 
-      }     
-    
-      if(state=='placed'){ 
-        self.state='placed'; //v self.view.attr(linkEndPts(self)).attr({ "stroke-width":3 }).attr(self.attr[self.state]);      
-        if(self.cell1.state=='on' && self.cell2.state=='on'){ self.setState('on'); } // state change zzzz hidden away
-      }
-      if(state=='on'){ 
-        self.state='on'; //v self.view.attr(self.attr[self.state]); 
-        if(self.cell1.state!="on" || self.cell2.state!="on"){ 
-          console.log('error - trying to set link to on when an endpt cell is not on'); 
+        catch (error) {
+        //console.log(state,'to',self.state,'not defined');
         }
-        self.triggerDiscover();
       }
       if(state!=state0){ 
         recvr( JSON.stringify({
-          link_update:(JSON.stringify({ id:self.id, state:self.state, }) ),
+          link_update:(JSON.stringify({ id:self.id, state:self.state, state0:state0, stateReq:state}) ),
         })  ); 
       }; // publish
       return self.state; 
@@ -369,13 +374,15 @@ var Link=function(cell1,port1,cell2,port2,__,self){
       cell1.broadcastTrees(self.cell1Port);
       cell2.broadcastTrees(self.cell2Port);
     },
+    /*
     attr:{  // view
       unplaced  :{ stroke:'gray'   },
       connected1:{ stroke:'black'  },
       connected2:{ stroke:'black'  },
       placed    :{ stroke:'black'  },  // yellow
       on        :{ stroke:'green'  }
-    },                   
+    },  
+    */                 
   };
   /*
   self.view=$(SVGnode('line')).attr(linkEndPts(self)).attr({'class':self.id})
