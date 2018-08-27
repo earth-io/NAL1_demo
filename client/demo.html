@@ -87,18 +87,15 @@ replay stream:
 		s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })
 	},100);  
 */
-
-
-
 //================================================================================ VIEW
+var model=Model();  // *****
 var spacing=38;
-var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position
-var y=   (k)=> (spacing/2)+spacing*row(k);  
-
+var x=   (k)=> (spacing/2)+spacing*model.col(k);  // cell position
+var y=   (k)=> (spacing/2)+spacing*model.row(k); 
 var model_render=(json,__,tiles,renderGraph)=>{
   var spacing=30;
-  var x=   (k)=> (spacing/2)+spacing*col(k);  // cell position is based on k
-  var y=   (k)=> (spacing/2)+spacing*row(k); 
+  var x=   (k)=> (spacing/2)+spacing*model.col(k);  // cell position is based on k
+  var y=   (k)=> (spacing/2)+spacing*model.row(k); 
   $('svg').remove();
   $('body').html('');
   var svg=SVGnode('svg');
@@ -121,14 +118,14 @@ var model_render=(json,__,tiles,renderGraph)=>{
     return svg;
   };
   
-  var tiles=range(nRow*nCol);
-  tiles.map((d,k,__,i=col(k),j=row(k))=>{ // make a tile for ea cell, put whole graph on ea tile
+  var tiles=range(model.nRow*model.nCol);
+  tiles.map((d,k,__,i=model.col(k),j=model.row(k))=>{ // make a tile for ea cell, put whole graph on ea tile
     renderGraph(append($(svg),$(SVGnode('svg'))
-      .attr({'id':'tile_'+k, width:301, height:301, x:i*(spacing+5)*nCol, y:j*(spacing+5)*nRow})
+      .attr({'id':'tile_'+k, width:301, height:301, x:i*(spacing+5)*model.nCol, y:j*(spacing+5)*model.nRow})
     ));
     $('#tile_'+k+' .cell_'+k).attr({ r:9});
   });
-  tiles.map((d,k,__,i=col(k),j=row(k))=>{ // put a tree on ea tile
+  tiles.map((d,k,__,i=model.col(k),j=model.row(k))=>{ // put a tree on ea tile
     json.trees[k] && json.trees[k].map((d,__,node)=>{      
         node=$('#tile_'+k+' .link_'+d)[0];
         $(node).attr({ stroke:'yellow','stroke-width':7})
@@ -137,18 +134,22 @@ var model_render=(json,__,tiles,renderGraph)=>{
   });  
 };
 // ========================================================= 
-
 $(document).ready(function(__,svg,base1,base2){ 
  // controls();
-  model_configure(5,4); 
-  model_render(JSON.parse(model_send()));
-  sp=stream.length;
-  stream.map((s)= s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; }) );
+  model.configure(5,4);   // ***** 
+  model_render(JSON.parse(model.send()));    // ***** 
+
+  // immediately render the model
+  stream.map((s)=>{
+    s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); }); 
+//    sp+=1; // NO!!
+  });
+  sp=stream.length; // OKAY now add addnl ev.s which will be animated
+
+//console.log(stream.filter((s)=> s.match('3_3_4_7')));
+//  console.log(stream.length,'unplaced links',model.links.filter((d)=> d.state!='placed').length);
   
-  console.log(stream.filter((s)=> s.match('3_3_4_7')));
-  console.log(stream.length,'unplaced links',links.filter((d)=> d.state!='placed').length);
-  
-  range(31).map(()=> random(ops)()); // ea op should result in a publish to recvr
+  range(31).map(()=> model.doRandomOp()); // ea op should result in a publish to recvr    // *****  FKD!!
  // model_render(JSON.parse(model_send()));
   return;
 
@@ -160,6 +161,5 @@ $(document).ready(function(__,svg,base1,base2){
 });
 </script>
 <pre>
-bug: why are some branches turning black - look at the stream before it gets played
-tbd: events, stream of ev, timeline and spaceout 
+tbd: add model to view, events, stream of ev, timeline and spaceout 
 </pre>
