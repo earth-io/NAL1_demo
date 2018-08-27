@@ -83,9 +83,9 @@ replay stream:
   model_render(JSON.parse(model_send()));  // sream is 240 in length
   sp=0;
 
-	var pid=setInterval((__,s=stream[sp])=>{
-		s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })
-	},100);  
+  var pid=setInterval((__,s=stream[sp])=>{
+    s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })
+  },100);  
 */
 //================================================================================ VIEW
 var model=Model();  // *****
