@@ -175,11 +175,10 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
         self     .ports[port_out ].trees[treeID]=true; // GGGG
         otherCell.ports[otherPort].trees[treeID]=true; // no need to echo
         
-        var s;
-        recvr(s= JSON.stringify({
+        recvr(JSON.stringify({
           tree_branch:(JSON.stringify({ treeID:treeID, linkID:link.id, state:link.state }) ),
         })  );
-        s.match('3_3_4_7') && console.log('sending',s);
+
         
         _.map(otherCell.ports,(port,k,__)=>{ // send out
           if(port.link && port.link.state=='on' && port!=otherPort){
