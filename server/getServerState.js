@@ -6,7 +6,7 @@ const socketIo = require("socket.io");
 const _ = require("lodash");
 
 //const gr_mod = require('./gr_mod.js');
-var { Model } = require('./model.js');
+var { Model } = require('./Model.js');
 console.log( "MODEL " , Model)
 
 // Loading the file index.html displayed to the client
@@ -52,45 +52,15 @@ io.sockets.on('connection', function (socket, username) {
 
 
 
-// ========================================================= RENDER (the cells)
-var cell_observers={  
-  update:(cell)=>{}
-};
-var link_observers={  
-  update:(link,treeID,op,data)=>{}
-};
 //================================================================================ lib
 /*
 stackoverflow.com/questions/424292/seedable-javascript-random-number-generator
 stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
 */
-var randumb=((__,seed=1)=>  // gives the same series of 'random' numbers every time
-  (__,x=Math.sin(seed++)*10000)=> x - Math.floor(x)
-)();
-//var Math_random=Math.random(); // truly random
-var Math_random=randumb;  // same random set of nubers every time
-var random= (arr)=> arr[Math.floor(arr.length*Math_random())]; // get a random item from an array 
-
-var opCnt=0;
-
-var ops=[
-  (__,d=random(cells))=>{ opCnt+=1;; return d.state!=d.setState('placed'    ); },
-  (__,d=random(cells))=>{ opCnt+=1;; return d.state!=d.setState('on'        ); }  // may trigger 'on' of links
-];
 
 //var append=($p,$c)=>{ $p.append($c); return $c; };
 var range=(n)=> [...Array(n).keys()];
-var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
-var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
-var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
-  aLine=$(SVGnode('line'))
-  parent.append(aLine.attr({ x1:x1, y1:y1, x2:x2, y2:y2, stroke:stroke, "stroke-width":width }));
-  return aLine;
-};
-var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
-//-----
-var stream=[],sp=0;
-var recvr=(s,__,json=JSON.parse(s))=> stream.push(s);  // TBD:  put in array and pull out and play
+
 
 //var pid=setInterval((__,s=stream[sp])=>{
 //  s!=undefined && _.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })

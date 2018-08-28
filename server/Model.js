@@ -1,7 +1,7 @@
 var { randumb, Math_random, random, append, add, range} = require('./common.js');
 var _ = require('lodash');
-var {Cell} = require('./cell.js');
-var {Link} = require('./link.js');
+var {Cell} = require('./Cell.js');
+var {Link} = require('./Link.js');
 
 var Model=(__,self)=>{
   var linkID=(c1,p1,c2,p2)=> (c1.id<c2.id) ? c1.id+'_'+p1+'_'+c2.id+'_'+p2 : c2.id+'_'+p2+'_'+c1.id+'_'+p1;
