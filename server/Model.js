@@ -1,4 +1,4 @@
-var { randumb, Math_random, random, append, add, range} = require('./common.js');
+var { randumb, Math_random, random, append, add, range} = require('./utility.js');
 var _ = require('lodash');
 var {Cell} = require('./Cell.js');
 var {Link} = require('./Link.js');
