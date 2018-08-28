@@ -96,15 +96,6 @@ var recvr=(s,__,json=JSON.parse(s))=> stream.push(s);  // TBD:  put in array and
 //  s!=undefined && _.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })
 //},100);
 
-//================================================================================ data
-
-// ========================================================= RENDER (the cells)
-var cell_observers={  
-  update:(cell)=>{}
-};
-var link_observers={  
-  update:(link,treeID,op,data)=>{}
-};
 //================================================================================ lib
 /*
 stackoverflow.com/questions/424292/seedable-javascript-random-number-generator
