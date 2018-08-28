@@ -2,7 +2,10 @@
 <meta charset='utf-8'>
 <script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
 <script  type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script  >
-<script src='server.js'></script>
+<script src='utility.js'  ></script>
+<script src='Cell.js' ></script>
+<script src='Link.js' ></script>
+<script src='Model.js'></script>
 <style>
 *                     { margin: 0;  padding: 0;  outline: none;  box-sizing: border-box; }
 body                  { background: 'white'; margin-top:50; }
@@ -16,8 +19,17 @@ button                { font: 20px system-ui; margin:5px;}
  <br/>
 </div>
 <script>
+// orphans that I dont know what to do with yet 
+
+var cell_observers={  
+  update:(cell)=>{}
+};
+var link_observers={  
+  update:(link,treeID,op,data)=>{}
+};
+
 $('body').css('background','#DDDDDD');
-//================================================================================ lib
+//================================================================================ client lib
 var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
 var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
 var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
@@ -56,16 +68,18 @@ var linksWhichAreOn={};  // debug
 
 var router={  // tbd: cell & link creation and deletion
   cell_update:(s,__,json=JSON.parse(s))=>{
+    cells[json.k].state=json.state;
     $('.cell_'+json.k).attr({ fill: {placed:'gray',on:'green'}[json.state] });
   },
   link_update:(s,__,json=JSON.parse(s))=>{ 
-    if(!linksWhichAreOn[json.id]){ linksWhichAreOn[json.id]=0; }
-    linksWhichAreOn[json.id]+=1;
-    if(linksWhichAreOn[json.id]>1){ return; } // its already on and we dont want to overwrite any yellow
-    $('.link_'+json.id).attr({ stroke: {placed:'gray',on:'black'}[json.state] });
+    links[json.id].state=json.state;
+    $('.link_'+json.id).attr({ stroke: {placed:'orange',on:'black'}[json.state] });
+    $.map(links[json.id].branches,(d,k)=> 
+      $('#tile_'+k+' .link_'+json.id).attr({ stroke: 'yellow','stroke-width':7,})
+    );
   },
   tree_branch:(s,__,json=JSON.parse(s))=>{
-    if(linksWhichAreOn[json.linkID]==undefined){ console.log('ERROR','link not on',json.linkID); }
+    links[json.linkID].branches[json.treeID]=true;
     $('#tile_'+json.treeID+' .link_'+json.linkID).attr({ stroke: 'yellow','stroke-width':7,});
   }
 };
@@ -89,31 +103,37 @@ replay stream:
 */
 //================================================================================ VIEW
 var model=Model();  // *****
-var spacing=38;
-var x=   (k)=> (spacing/2)+spacing*model.col(k);  // cell position
-var y=   (k)=> (spacing/2)+spacing*model.row(k); 
+var spacing=30;
+var x=   (k)=> (spacing/2)+spacing*model.col(k);  // cell position is based on k
+var y=   (k)=> (spacing/2)+spacing*model.row(k);
+var cells={};
+var addCell=(k,state)=> cells[k]={ state:state, cx:x(k),cy:y(k) };
+var links={}; // have branches
+var addLink=(id,state,x1,y1,x2,y2)=> links[id]={state:state, branches:{}, x1:x1,y1:y1,x2:x2,y2:y2};
+
 var model_render=(json,__,tiles,renderGraph)=>{
-  var spacing=30;
-  var x=   (k)=> (spacing/2)+spacing*model.col(k);  // cell position is based on k
-  var y=   (k)=> (spacing/2)+spacing*model.row(k); 
+  // VIEW MODEL
+	json.cells.map((d)=> addCell(d[0],d[1]) )  // k state
+	json.links.map((d,__,args)=>{ 
+		args=d[0].split('_'); 
+		addLink(d[0],d[1],x(args[0]),y(args[0]),x(args[2]),y(args[2]));
+	});
+
   $('svg').remove();
   $('body').html('');
   var svg=SVGnode('svg');
   $(svg).attr({width:1000, height:1000});
   $('body').append(svg);
-  renderGraph=(svg,__,$gc,$gl)=>{
+  renderGraph=(svg,__,$gl,$gc)=>{
     $gl=append($(svg),$(SVGnode('g')));
-    json.links.map((d,__,args)=>{ 
-      args=d[0].split('_'); 
-      $gl.append(
-        line($gl,x(args[0]),y(args[0]),x(args[2]),y(args[2]),
-          {placed:'gray',on:'black'}[d[1]],{placed:1,on:2}[d[1]]).attr('class','link_'+d[0])
-      )
-    });
     $gc=append($(svg),$(SVGnode('g')));
-    json.cells.map((d)=> $gc.append(
-      $(SVGnode('circle'))
-        .attr({'class':'cell_'+d[0], cx:x(d[0]),cy:y(d[0]), r:6, fill:{placed:'gray',on:'green'}[d[1]]})
+    $.map(links,(d,id,__,args)=> $gl.append(
+			line($gl,d.x1,d.y1,d.x2,d.y2,{placed:'gray',on:'black'}[d.state],{placed:1,on:2}[d.state])
+				.attr('class','link_'+id)
+		));
+    $.map(cells,(d,id)=> $gc.append(
+			$(SVGnode('circle'))
+				.attr({'class':'cell_'+id, cx:d.cx,cy:d.cy, r:6, fill:{placed:'gray',on:'green'}[d.state]})
     ));
     return svg;
   };
