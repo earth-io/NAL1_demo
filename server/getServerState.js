@@ -1,13 +1,20 @@
-var http = require('http');
-var fs = require('fs');
-
-// Loading socket.io
+var http       = require('http');
+var fs         = require('fs');
 const socketIo = require("socket.io");
-const _ = require("lodash");
+const _        = require("lodash");
+
+const getFormattedTime=()=> (new Date()).toLocaleTimeString();
 
 //const gr_mod = require('./gr_mod.js');
-var { Model } = require('./Model.js');
-console.log( "MODEL " , Model)
+
+var range=(n)=> [...Array(n).keys()];  // from utility.js
+
+var { Model }  = require('./Model.js');  console.log( "MODEL USAGE" , Model)
+var model=  Model();    console.log( "model", model);
+model.configure(5,4);
+range(31).map(()=> model.doRandomOp()); 
+
+
 
 // Loading the file index.html displayed to the client
 var server = http.createServer(function(req, res) {
@@ -16,24 +23,19 @@ var server = http.createServer(function(req, res) {
         res.end(content);
     });
 });
-
-function getFormattedTime(i) {
-	var d = new Date();
-        return d.toLocaleTimeString();;
-    }
+const portId = 8060
+server.listen( portId,()=> console.log('listening on *:' + portId) );
 
 
 let myCounter = 0;
 const io = socketIo(server);
 
 let myArr = []
-setInterval(function () {
-     console.log("Increment counter");
+setInterval(()=>{
      myCounter++;
      myArr.push( myCounter);
      console.log("Increment counter" + JSON.stringify( myArr));
-    }, 2500);
-
+    }, 5000);
 
 io.sockets.on('connection', function (socket, username) {
     socket.on('getFullState', function (message) {
@@ -44,57 +46,8 @@ io.sockets.on('connection', function (socket, username) {
     });
 
 	setInterval(function () {
-		 console.log("Increment counter");
+	//	 console.log("Increment counter");
 		 socket.emit('replyChangeState', myCounter);
-		}, 2500);
+		}, 5000);
 
 });
-
-
-
-//================================================================================ lib
-/*
-stackoverflow.com/questions/424292/seedable-javascript-random-number-generator
-stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
-*/
-
-//var append=($p,$c)=>{ $p.append($c); return $c; };
-var range=(n)=> [...Array(n).keys()];
-
-
-//var pid=setInterval((__,s=stream[sp])=>{
-//  s!=undefined && _.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })
-//},100);
-
-//================================================================================ lib
-/*
-stackoverflow.com/questions/424292/seedable-javascript-random-number-generator
-stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
-*/
-
-//================================================================================ data
-
-//================================================================================ MODEL - CELL
-var maxCnt=0;   // max hop count
-var treeAdds=0; // how many branches have been created
-// hard wire cell positions
-
-//================================================================================ MODEL - LINK
-//////////////////
-
-
-var model=  Model();  // *****
-console.log( "USAGE ", model);
-
-var spacing=38;
-var x=   (k)=> (spacing/2)+spacing*model.col(k);  // cell position
-var y=   (k)=> (spacing/2)+spacing*model.row(k); 
-
-model.configure( 5,4);
-range(31).map(()=> model.doRandomOp());
-
-portId = 8060
-server.listen( portId, function(){
-    console.log('listening on *:' + portId);
-});
-  

@@ -1,6 +1,8 @@
 if(typeof require!='undefined'){
   var { randumb, Math_random, random, append, add, range} = require('./utility.js');
   var _ = require('lodash');
+  var {Cell} = require('./Cell.js');
+  var {Link} = require('./Link.js');
 }
 
 var Model=(__,self)=>{
@@ -78,7 +80,7 @@ var Model=(__,self)=>{
     _.map(self.cells,(d)=> d.setState('placed'    ));
     _.map(self.links,(d)=> d.setState('connected1'));
     _.map(self.links,(d)=> d.setState('connected2')); 
-    console.log('fini configuring'); // links.map((d)=> d.state)  everything is 'placed'
+  //console.log('fini configuring'); // links.map((d)=> d.state)  everything is 'placed'
   };
   self.doRandomOp=()=> random(ops)()
   self.send=()=>
@@ -92,6 +94,10 @@ var Model=(__,self)=>{
   ;
   return self;
 };
+
+//var model=  Model(); 
+//model.configure( 5,4);
+//range(31).map(()=> model.doRandomOp());
 
 if(typeof module!='undefined'){ module.exports.Model = Model; } 
 

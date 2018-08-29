@@ -1,7 +1,9 @@
-var { randumb, Math_random, random, append, add, range} = require('./utility.js');
-var _ = require('lodash');
-var {Cell} = require('./Cell.js');
-var {Link} = require('./Link.js');
+if(typeof require!='undefined'){
+  var { randumb, Math_random, random, append, add, range} = require('./utility.js');
+  var _ = require('lodash');
+  var {Cell} = require('./Cell.js');
+  var {Link} = require('./Link.js');
+}
 
 var Model=(__,self)=>{
   var linkID=(c1,p1,c2,p2)=> (c1.id<c2.id) ? c1.id+'_'+p1+'_'+c2.id+'_'+p2 : c2.id+'_'+p2+'_'+c1.id+'_'+p1;
@@ -78,7 +80,7 @@ var Model=(__,self)=>{
     _.map(self.cells,(d)=> d.setState('placed'    ));
     _.map(self.links,(d)=> d.setState('connected1'));
     _.map(self.links,(d)=> d.setState('connected2')); 
-    console.log('fini configuring'); // links.map((d)=> d.state)  everything is 'placed'
+  //console.log('fini configuring'); // links.map((d)=> d.state)  everything is 'placed'
   };
   self.doRandomOp=()=> random(ops)()
   self.send=()=>
@@ -90,18 +92,11 @@ var Model=(__,self)=>{
       trees:extractTrees(self.cells,self.links),        // treeID:[linkID,.. ]
     })
   ;
-//  return {
-//  	  	Model: self,
-//  	  	configure: self.configure,
-//        send: self.send
-//    };
   return self;
 };
 
-
-module.exports.Model = Model;  
-
 //var model=  Model(); 
-//console.log( model);
 //model.configure( 5,4);
 //range(31).map(()=> model.doRandomOp());
+
+if(typeof module!='undefined'){ module.exports.Model = Model; } 

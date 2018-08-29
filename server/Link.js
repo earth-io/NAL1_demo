@@ -1,3 +1,8 @@
+if(typeof require!='undefined'){
+  var { randumb, Math_random, random, append, add, range} = require('./utility.js');
+  var _ = require('lodash');
+}
+
 var Link=function(cell1,port1,cell2,port2,__,self){
   var linkID=(c1,p1,c2,p2)=> (c1.id<c2.id) ? c1.id+'_'+p1+'_'+c2.id+'_'+p2 : c2.id+'_'+p2+'_'+c1.id+'_'+p1;
 
@@ -78,8 +83,7 @@ var Link=function(cell1,port1,cell2,port2,__,self){
   return self;
 };
 
-var stream=[],sp=0;
+// kludge for server name space - replace with a util for socket based packet send
 var recvr=(s,__,json=JSON.parse(s))=> stream.push(s);  // TBD:  put in array and pull out and play
 
-module.exports.Link = Link;  
-
+if(typeof module!='undefined'){ module.exports.Link = Link; } 

@@ -1,5 +1,26 @@
-const _ = require("lodash");
+if(typeof require!='undefined'){
+  var { randumb, Math_random, random, append, add, range} = require('./utility.js');
+  var _ = require('lodash');
+  var {Model} = require('./Model.js');
+}
 
+// debug:
+var maxCnt=0;   // max hop count
+var treeAdds=0; // how many branches have been created
+// hard wire cell positions
+
+// zzzz kludge - needed, repeated from model.js
+var self={nCol:5};
+var  model_col= (k)=> k%self.nCol; 
+var  model_row= (k)=> Math.floor(k/self.nCol);
+  
+// zzzz kludge - needed, repeated from demo.html
+  
+var spacing=30;
+var x=   (k)=> (spacing/2)+spacing*model_col(k);  // cell position is based on k
+var y=   (k)=> (spacing/2)+spacing*model_row(k);
+
+cntr=0
 var Cell=function(k,__,self,getOtherCell,getOtherPort){
   getOtherCell=(link)=> (link==null) ? null : ((link.cell1==self) ? link.cell2     : link.cell1    ),
   getOtherPort=(link)=> (link==null) ? null : ((link.cell1==self) ? link.cell2Port : link.cell1Port),
@@ -8,8 +29,8 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
     uuid:k,
     k:k, 
     
-//    x:x(k), // not used on server - but client does
-//    y:y(k), // not used on server
+    x:cntr+=5, // not used on server - but client does
+    y:cntr+=5, // not used on server
     
     state:'unplaced',  // unplaced,placed,on 
 
@@ -98,16 +119,18 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
     },  
     update:()=>{ cell_observers.update(self); }  // called by .setState
   }
+  console.log(self);
   return self;
 };
 
-var cell_observers={  
-  update:(cell)=>{}
-};
+// drop updates on the floor   zzzzz
+		var cell_observers={  
+			update:(cell)=>{}
+		};
 
-var stream=[],sp=0;
-var recvr=(s,__,json=JSON.parse(s))=> stream.push(s);  // TBD:  put in array and pull out and play
-
-module.exports.Cell = Cell;  
+		var stream=[],sp=0;
+		var recvr=(s,__,json=JSON.parse(s))=> stream.push(s);  // TBD:  put in array and pull out and play
 
 
+
+if(typeof module!='undefined'){ module.exports.Cell = Cell; }
