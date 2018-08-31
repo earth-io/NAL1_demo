@@ -4,23 +4,12 @@ if(typeof require!='undefined'){
   var {Model} = require('./Model.js');
 }
 
+console.log('loading Cell.js');
+
 // debug:
 var maxCnt=0;   // max hop count
 var treeAdds=0; // how many branches have been created
-// hard wire cell positions
 
-// zzzz kludge - needed, repeated from model.js
-var self={nCol:5};
-var  model_col= (k)=> k%self.nCol; 
-var  model_row= (k)=> Math.floor(k/self.nCol);
-  
-// zzzz kludge - needed, repeated from demo.html
-  
-var spacing=30;
-var x=   (k)=> (spacing/2)+spacing*model_col(k);  // cell position is based on k
-var y=   (k)=> (spacing/2)+spacing*model_row(k);
-
-cntr=0
 var Cell=function(k,__,self,getOtherCell,getOtherPort){
   getOtherCell=(link)=> (link==null) ? null : ((link.cell1==self) ? link.cell2     : link.cell1    ),
   getOtherPort=(link)=> (link==null) ? null : ((link.cell1==self) ? link.cell2Port : link.cell1Port),
@@ -28,10 +17,7 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
     id:k,  // need a closure for uuid generation - in our case the k index has a spl meaning
     uuid:k,
     k:k, 
-    
-    x:cntr+=5, // not used on server - but client does
-    y:cntr+=5, // not used on server
-    
+      
     state:'unplaced',  // unplaced,placed,on 
 
     ports:[
@@ -64,7 +50,7 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
         recvr(s= JSON.stringify({
           cell_update:(JSON.stringify({ k:self.k, state:self.state, }) ),
         })  );
-        s.match('3_3_4_7') && console.log('sending',s);
+      //s.match('3_3_4_7') && console.log('sending',s);
       }; // publish
       return self.state; 
     },
@@ -119,18 +105,17 @@ var Cell=function(k,__,self,getOtherCell,getOtherPort){
     },  
     update:()=>{ cell_observers.update(self); }  // called by .setState
   }
-  console.log(self);
   return self;
 };
 
 // drop updates on the floor   zzzzz
-		var cell_observers={  
-			update:(cell)=>{}
-		};
+	var cell_observers={  
+		update:(cell)=>{}
+	};
 
-		var stream=[],sp=0;
-		var recvr=(s,__,json=JSON.parse(s))=> stream.push(s);  // TBD:  put in array and pull out and play
-
-
-
-if(typeof module!='undefined'){ module.exports.Cell = Cell; }
+if(typeof module!='undefined'){ 
+  // tbd: replace recvr with a sock call when using nodejs
+	var stream=[],sp=0;
+	var recvr=(s,__,json=JSON.parse(s))=> stream.push(s); // recvr is redefined here, as a kludge
+  module.exports.Cell = Cell; 
+}

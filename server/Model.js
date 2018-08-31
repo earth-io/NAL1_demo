@@ -1,16 +1,20 @@
 if(typeof require!='undefined'){
-  var { randumb, Math_random, random, append, add, range} = require('./utility.js');
   var _ = require('lodash');
-  var {Cell} = require('./Cell.js');
-  var {Link} = require('./Link.js');
+  var { randumb, Math_random, random, append, add, range} = require('./utility.js');
+  var { nRow, nCol, row, col, x, y , foobar}              = require('../common/layout.js');
+  var {Cell}                                              = require('./Cell.js');
+  var {Link}                                              = require('./Link.js');
 }
+
+console.log('loading Model.js');
+console.log(foobar);  // I see this
 
 var Model=(__,self)=>{
   var linkID=(c1,p1,c2,p2)=> (c1.id<c2.id) ? c1.id+'_'+p1+'_'+c2.id+'_'+p2 : c2.id+'_'+p2+'_'+c1.id+'_'+p1;
 
 
   var cellHash={};
-  var hashCell=(cell)=> cellHash[self.row(cell.k)+'_'+self.col(cell.k)]=cell;
+  var hashCell=(cell)=> cellHash[row(cell.k)+'_'+col(cell.k)]=cell;
   var getCell= (row,col)=> cellHash[row+'_'+col];
   var linkHash={}; 
   
@@ -46,11 +50,11 @@ var Model=(__,self)=>{
 //self.nRow  // set w/ .configure
   self.cells=[];
   self.links=[];
-  self.col= (k)=> k%self.nCol; 
-  self.row= (k)=> Math.floor(k/self.nCol);
   self.configure=(nCol_,nRow_,__,configureLinks)=>{  // initialization
     self.nCol=nCol_;
     self.nRow=nRow_;
+    nCol=nCol_;   // layout.js
+    nRow=nRow_;   // layout.js
 
     configureLinks= (cells)=> {
       _.map(cells,(c1,__,c2,mkLinkWhenDoesNotExist)=> { 
@@ -63,16 +67,16 @@ var Model=(__,self)=>{
           } 
         };
         // for ea port: find its potential neighbor cell; make a link if it does not already exist
-        if(c2=getCell(self.row(c1.k)+0,self.col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,3,c2); } // right
-        if(c2=getCell(self.row(c1.k)-1,self.col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,1,c2); } // above
-        if(c2=getCell(self.row(c1.k)+0,self.col(c1.k)-1)){ mkLinkWhenDoesNotExist(c1,7,c2); } // left
-        if(c2=getCell(self.row(c1.k)+1,self.col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,5,c2); } // below
-        if(c2=getCell(self.row(c1.k)+1,self.col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,4,c2); } // bot rt   diag
-        if(c2=getCell(self.row(c1.k)-1,self.col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,2,c2); } // top left diag
+        if(c2=getCell(row(c1.k)+0,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,3,c2); } // right
+        if(c2=getCell(row(c1.k)-1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,1,c2); } // above
+        if(c2=getCell(row(c1.k)+0,col(c1.k)-1)){ mkLinkWhenDoesNotExist(c1,7,c2); } // left
+        if(c2=getCell(row(c1.k)+1,col(c1.k)+0)){ mkLinkWhenDoesNotExist(c1,5,c2); } // below
+        if(c2=getCell(row(c1.k)+1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,4,c2); } // bot rt   diag
+        if(c2=getCell(row(c1.k)-1,col(c1.k)+1)){ mkLinkWhenDoesNotExist(c1,2,c2); } // top left diag
       });
     };
 
-    range(self.nCol*self.nRow).map((d,k)=> self.cells.push(Cell(k)));
+    range(nCol*nRow).map((d,k)=> self.cells.push(Cell(k)));
     _.map(self.cells,(d)=> hashCell(d));
     configureLinks(self.cells);
   
@@ -85,8 +89,8 @@ var Model=(__,self)=>{
   self.doRandomOp=()=> random(ops)()
   self.send=()=>
     JSON.stringify({
-      nRow:self.nRow,
-      nCol:self.nCol,
+      nRow:nRow,
+      nCol:nCol,
       cells:self.cells.map((d)=> [d.k ,d.state] ), // ,d.ports.map(d)=> d.trees]),
       links:self.links.map((d)=> [d.id,d.state]),
       trees:extractTrees(self.cells,self.links),        // treeID:[linkID,.. ]

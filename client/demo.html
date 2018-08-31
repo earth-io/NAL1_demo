@@ -3,6 +3,7 @@
 <script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
 <script  type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script>
 <script src='../server/utility.js'  ></script>
+<script src='../common/layout.js'  ></script>
 <script src='../server/Cell.js' ></script>
 <script src='../server/Link.js' ></script>
 <script src='../server/Model.js'></script>
@@ -103,9 +104,6 @@ replay stream:
 */
 //================================================================================ VIEW
 var model=Model();  // *****
-var spacing=30;
-var x=   (k)=> (spacing/2)+spacing*model.col(k);  // cell position is based on k
-var y=   (k)=> (spacing/2)+spacing*model.row(k);
 var cells={};
 var addCell=(k,state)=> cells[k]={ state:state, cx:x(k),cy:y(k) };
 var links={}; // have branches
@@ -139,13 +137,13 @@ var model_render=(json,__,tiles,renderGraph)=>{
   };
   
   var tiles=range(model.nRow*model.nCol);
-  tiles.map((d,k,__,i=model.col(k),j=model.row(k))=>{ // make a tile for ea cell, put whole graph on ea tile
+  tiles.map((d,k,__,i=col(k),j=row(k))=>{ // make a tile for ea cell, put whole graph on ea tile
     renderGraph(append($(svg),$(SVGnode('svg'))
       .attr({'id':'tile_'+k, width:301, height:301, x:i*(spacing+5)*model.nCol, y:j*(spacing+5)*model.nRow})
     ));
     $('#tile_'+k+' .cell_'+k).attr({ r:9});
   });
-  tiles.map((d,k,__,i=model.col(k),j=model.row(k))=>{ // put a tree on ea tile
+  tiles.map((d,k,__,i=col(k),j=row(k))=>{ // put a tree on ea tile
     json.trees[k] && json.trees[k].map((d,__,node)=>{      
         node=$('#tile_'+k+' .link_'+d)[0];
         $(node).attr({ stroke:'yellow','stroke-width':7})

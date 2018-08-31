@@ -1,7 +1,10 @@
+console.log('loading utility.js');
+
 /*
 stackoverflow.com/questions/424292/seedable-javascript-random-number-generator
 stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
 */
+
 var randumb=((__,seed=1)=>  // gives the same series of 'random' numbers every time
   (__,x=Math.sin(seed++)*10000)=> x - Math.floor(x)
 )();

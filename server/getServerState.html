@@ -2,8 +2,9 @@
 <meta charset="utf-8" />
 <title>Socket.io</title>
 <script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
-<script  type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script>
 <script src="/socket.io/socket.io.js"></script>
+<script type="text/javascript" src="common/layout.js"></script>
 <style>
 *                     { margin: 0;  padding: 0;  outline: none;  box-sizing: border-box; }
 body                  { background: 'white'; margin-top:50; }
@@ -12,7 +13,7 @@ button                { font: 20px system-ui; margin:5px;}
 .abs                  { position:absolute; }
 </style>
 <body>
-<h1>Communicating with socket.io!</h1>
+<h1>Communicating with socket.io! 2</h1>
 
 <p><input type="button" value="Poke the server" id="poke" /></p>
 <textarea id="queries" name="queries">HHHHHH</textarea><br />
@@ -28,6 +29,7 @@ button                { font: 20px system-ui; margin:5px;}
 	</form>
 </main>
 <script>
+
 //================================================================================ client lib
 var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
 var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
@@ -58,6 +60,7 @@ var links={}; // have branches
 var addLink=(id,state,x1,y1,x2,y2)=> links[id]={state:state, branches:{}, x1:x1,y1:y1,x2:x2,y2:y2};
 
 var model_render=(json,__,tiles,renderGraph)=>{
+  alert(nRow,nCol);
   // VIEW MODEL
 	json.cells.map((d)=> addCell(d[0],d[1]) )  // k state
 	json.links.map((d,__,args)=>{ 
