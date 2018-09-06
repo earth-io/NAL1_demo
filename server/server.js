@@ -1,87 +1,61 @@
-console.log('loading getServerState.js');
- 
-var http       = require('http');
-var fs         = require('fs');
-const socketIo = require("socket.io");
-const _        = require("lodash");
-var { randumb, Math_random, random, append, add, range} = require('./utility.js');
-var { nCol, nRow, col, row, x, y, foobar }              = require('../common/layout.js');
+//const getFormattedTime=()=> (new Date()).toLocaleTimeString();  // not used
 
-console.log('from getServerState utility - range is:',range);
-console.log('from getServerState layout - nRow,nCol is:',nRow,nCol);
-
-const getFormattedTime=()=> (new Date()).toLocaleTimeString();
-
-var { Model }  = require('./Model.js');  
-var model=  Model();    console.log( "model", model);
+var { range} = require('./utility.js'); // { randumb, Math_random, random, append, add, range}
+//  { nCol, nRow, col, row, x, y  } = require('../common/layout.js');
+var { Model }  = require('./Model.js'); 
+// we need a another file that creates an instance of the model  zzzzz
+var model      = Model();
 model.configure(5,4);
-range(31).map(()=> model.doRandomOp()); 
-
-// Loading the file index.html displayed to the client
-//var server = http.createServer(function(req, res) {
-//    fs.readFile('./server/getServerState.html', 'utf-8', function(error, content) {
-//        res.writeHead(200, {"Content-Type": "text/html"});
-//        res.end(content);
-//    });
-//});
-
-
-var server =  http.createServer(function(request, response) {
-
-	if(request.url === "/index"){
-		sendFileContent(response, "server/getServerState.html", "text/html");
-	}
-	else if(request.url === "/"){
-		response.writeHead(200, {'Content-Type': 'text/html'});
-		response.write('<b>Hey there!</b><br /><br />This is the default response. Requested URL is: ' + request.url);
-	}
-	else if(/^\/[a-zA-Z0-9\/]*.js$/.test(request.url.toString())){
-		sendFileContent(response, request.url.toString().substring(1), "text/javascript");
-	}
-	else if(/^\/[a-zA-Z0-9\/]*.css$/.test(request.url.toString())){
-		sendFileContent(response, request.url.toString().substring(1), "text/css");
-	}
-	else{
-		console.log("Requested URL is: " + request.url);
-		response.end();
-	}
+range(31).map(()=> model.doRandomOp());
+model.observerCBs=[];
+setInterval(()=>{ model.doRandomOp(); model.observerCBs.map((d)=> d(model.send()));  },1000);
+//============================================================= communication w/ client
+var http       = require('http'); // http.createServer; listens on a port
+var fs         = require('fs');
+const socketIo = require("socket.io");  // 
+/*
+// the file to be displayed on the client when the req.url in index.html or the default
+// this is good enough for what we want to do
+var server = http.createServer((req,res,__,fileName='./server/getServerState.html')=>{
+  fs.readFile(fileName,'utf-8',(err,content)=>{
+    res.writeHead(200, {"Content-Type": "text/html"}); res.end(content);
+  });
+});
+*/
+var server=http.createServer((req,res,__,sendFileContent)=>{ // request,response; only use req.url
+  sendFileContent=(fileName,contentType)=>{
+    fs.readFile(fileName,(err,content)=>{
+      if(err){ res.writeHead(404);                                res.write("Not Found!"); }
+      else   { res.writeHead(200, {'Content-Type': contentType}); res.write(content     ); }
+      res.end();
+    });
+  }
+  // ============== routing - we arent currently using this, so is for instructional purposes
+  if(req.url === "/"){
+    res.writeHead(200, {'Content-Type': 'text/html'});
+    res.write('This is the default res. request URL is: ' + req.url); // res.end(); NO!
+  }
+  else if(req.url === "/index"){
+    sendFileContent("server/getServerState.html", "text/html");
+  }
+  else if(/^\/[a-zA-Z0-9\/]*.js$/.test(req.url.toString())){
+    sendFileContent(req.url.toString().substring(1), "text/javascript");
+  }
+  else if(/^\/[a-zA-Z0-9\/]*.css$/.test(req.url.toString())){
+    sendFileContent(req.url.toString().substring(1), "text/css");
+  }
+  else{
+    console.log("requested URL is: " + req.url);
+    res.end();
+  }
 });
 
-function sendFileContent(response, fileName, contentType){
-    fs.readFile(fileName, function(err, data){
-	if(err){
-	   response.writeHead(404);
-	   response.write("Not Found!");
-	}
-	else{
-	   response.writeHead(200, {'Content-Type': contentType});
-	   response.write(data);
-	}
-	response.end();
-    });
-}
-
-
-const portId = 8060
-server.listen( portId,()=> console.log('listening on *:' + portId) );
-
-
-let myCounter = 0;
-const io = socketIo(server);
-
-let myArr = []
-setInterval(()=>{
-     myCounter++;
-     myArr.push( myCounter);
-     console.log("Increment counter" + JSON.stringify( myArr));
-    }, 9000);
-
-io.sockets.on('connection', function (socket, username) {
-  socket.on('getFullState', function (message) {
-        // The username of the person who clicked is retrieved from the session variables
-        console.log(message + ' Server: ' + JSON.stringify({"version":1, "graph":myArr}));
-//        socket.emit('replyFullState', JSON.stringify( {"version":Date.now(), "graph":myArr}));
-        socket.emit('replyFullState', model.send());
-  });
-	setInterval(()=>{ socket.emit('replyChangeState', myCounter); }, 9000);
+const portId = 8060;
+server.listen(portId,()=> console.log('listening on *:' + portId) ); // what is this cb fn?
+const io = socketIo(server);   // now can connect sockets to server
+io.sockets.on('connection',(socket, username)=>{  // socket is an instance of a connection
+   // on: reqFullState
+   // emit: fullState, changeState
+  socket.on('reqFullState',(msg)=> socket.emit('fullState', model.send()) );
+  model.observerCBs.push((s)=> socket.emit('changeState',s));
 });
