@@ -13,23 +13,10 @@ button                { font: 20px system-ui; margin:5px;}
 .abs                  { position:absolute; }
 </style>
 <body>
-<h1>Communicating with socket.io! 2</h1>
-
-<p><input type="button" value="Poke the server" id="poke" /></p>
-<textarea id="queries" name="queries">HHHHHH</textarea><br />
-<input type="hidden" name="formInstance" value="form1" />
-
-<main role="main">
-	<ul id="messages"></ul>
-	<ul id="messagesChange"></ul>
-	<form>
-		<input id="you" type="text" placeholder="??" maxlength="2"></input>
-		<input id="m" autocomplete="off" type="text"></input>
-		<button>Send</button>
-	</form>
-</main>
+<h1>Communicating with socket.io! 5</h1>
+<p><input type="button" value="get full model from server" id="poke" /></p>
+<ul id="messages"></ul>
 <script>
-
 //================================================================================ client lib
 var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
 var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
@@ -60,7 +47,6 @@ var links={}; // have branches
 var addLink=(id,state,x1,y1,x2,y2)=> links[id]={state:state, branches:{}, x1:x1,y1:y1,x2:x2,y2:y2};
 
 var model_render=(json,__,tiles,renderGraph)=>{
-  alert(nRow,nCol);
   // VIEW MODEL
 	json.cells.map((d)=> addCell(d[0],d[1]) )  // k state
 	json.links.map((d,__,args)=>{ 
@@ -104,42 +90,13 @@ var model_render=(json,__,tiles,renderGraph)=>{
 };
 //================================================================================ 
 var socket = io.connect('http://localhost:8060');
-var collectData = []
 
-// The visitor is asked for their username...
-//            var username = prompt('What\'s your username?');
+$(document).ready((__)=>{ 
+  socket.emit('reqFullState','I want model.send()'); // or $('#poke').click(()=> ..	)
+});
+socket.on('fullState',  (s)=>{ model_render(JSON.parse(s)); });
+socket.on('changeState',(s)=>{ model_render(JSON.parse(s)); });// trees are empty
 
-// It's sent with the signal "little_newbie" (to differentiate it from "message")
-//            socket.emit('little_newbie', username);
-
-
-// When the button is clicked, a "message" is sent to the server
-$('#poke').click(function () {
-	var mesFromClient  = $('#queries').val()
-	socket.emit('getFullState', 'Hi server, how are you?' + $('#queries').val());
-		
-//               alert('The server has a message for you: ' + mesFromClient);
-})
-
-var msg;
-socket.on('replyFullState', function(message) {
-//     $('#messages').append(message);
-	$('#messages').html(message);
-	msg=JSON.parse(message);
-	model_render(msg);
-	collectData.push( message.len);
-	//  alert('The server has a message for you: ' + message);
-})
-
-socket.on('replyChangeState', function(message) {
-	$('#messagesChange').append(message);
-})
-
-socket.on('to_text', function(message) {
-		$('#messages').append(message);
-		$('#messages').append(message);
-		alert('The server has a message for you: ' + message);
-})
-//            var changesSocket = io('/stateChanges');
+//var changesSocket = io('/stateChanges'); // from Gregory
 </script>
 </body>
