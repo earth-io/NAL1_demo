@@ -1,17 +1,16 @@
 if(typeof require!='undefined'){
   var _ = require('lodash');
-  var { randumb, Math_random, random, append, add, range} = require('./utility.js');
-  var { nRow, nCol, row, col, x, y , foobar}              = require('../common/layout.js');
-  var {Cell}                                              = require('./Cell.js');
-  var {Link}                                              = require('./Link.js');
+  var   { randumb, Math_random, random, append, add, range} = require('./utility.js');
+  var   { nRow, nCol,row, col      }                        = require('../common/layout.js');
+  const {                     x, y }                        = require('../common/layout.js');
+  var   { Cell }                                            = require('./Cell.js');
+  var   { Link }                                            = require('./Link.js');
 }
 
-console.log('loading Model.js');
-console.log(foobar);  // I see this
+console.log('from Model.js 1 >',nRow,nCol);
 
 var Model=(__,self)=>{
   var linkID=(c1,p1,c2,p2)=> (c1.id<c2.id) ? c1.id+'_'+p1+'_'+c2.id+'_'+p2 : c2.id+'_'+p2+'_'+c1.id+'_'+p1;
-
 
   var cellHash={};
   var hashCell=(cell)=> cellHash[row(cell.k)+'_'+col(cell.k)]=cell;
@@ -86,21 +85,21 @@ var Model=(__,self)=>{
     _.map(self.links,(d)=> d.setState('connected2')); 
   //console.log('fini configuring'); // links.map((d)=> d.state)  everything is 'placed'
   };
-  self.doRandomOp=()=> random(ops)()
+  self.doRandomOp=()=> random(ops)();
   self.send=()=>
     JSON.stringify({
       nRow:nRow,
       nCol:nCol,
       cells:self.cells.map((d)=> [d.k ,d.state] ), // ,d.ports.map(d)=> d.trees]),
       links:self.links.map((d)=> [d.id,d.state]),
+   //   cellHash:cellHash,
+     // linkHash:linkHash,
       trees:extractTrees(self.cells,self.links),        // treeID:[linkID,.. ]
     })
   ;
   return self;
 };
 
-//var model=  Model(); 
-//model.configure( 5,4);
-//range(31).map(()=> model.doRandomOp());
+//var model=  Model(); model.configure( 5,4); range(31).map(()=> model.doRandomOp());
 
 if(typeof module!='undefined'){ module.exports.Model = Model; } 
