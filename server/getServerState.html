@@ -4,7 +4,9 @@
 <script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
 <script type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script>
 <script src="/socket.io/socket.io.js"></script>
-<script type="text/javascript" src="common/layout.js"></script>
+<script type="text/javascript" src="server/utility.js"></script>
+<script type="text/javascript" src="common/layout.js" ></script>
+<script type="text/javascript" src="common/render.js" ></script>
 <style>
 *                     { margin: 0;  padding: 0;  outline: none;  box-sizing: border-box; }
 body                  { background: 'white'; margin-top:50; }
@@ -13,7 +15,7 @@ button                { font: 20px system-ui; margin:5px;}
 .abs                  { position:absolute; }
 </style>
 <body>
-<h1>Communicating with socket.io! 5</h1>
+<h1>Communicating using socket.io! 6</h1>
 <p><input type="button" value="get full model from server" id="poke" /></p>
 <ul id="messages"></ul>
 <script>
@@ -26,76 +28,30 @@ var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
   return aLine;
 };
 var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
-
-var append=($p,$c)=>{ $p.append($c); return $c; };
-var add=(o,k,v)=> o[k]==undefined ? o[k]=[v]  : o[k].push(v);
-var range=(n)=> [...Array(n).keys()];
 //================================================================================ VIEW
-// var model=Model();  // ***** this is what I had before
-var model={
-  nCol:5,
-  nRow:4,
-  col:(k)=> k%model.nCol,    // how do I get this out of the server's model 
-  row:(k)=> Math.floor(k/model.nCol),
-};
-var spacing=30;
-var x=   (k)=> (spacing/2)+spacing*model.col(k);  // cell position is based on k
-var y=   (k)=> (spacing/2)+spacing*model.row(k);
-var cells={};
-var addCell=(k,state)=> cells[k]={ state:state, cx:x(k),cy:y(k) };
-var links={}; // have branches
-var addLink=(id,state,x1,y1,x2,y2)=> links[id]={state:state, branches:{}, x1:x1,y1:y1,x2:x2,y2:y2};
+const VModel=(json,__,vModel={cells:{},links:{},trees:'-'},addCell,addLink)=>{
+	addCell=(k,state)=> vModel.cells[k]={ state:state, cx:x(k),cy:y(k) };
+	addLink=(id,state,x1,y1,x2,y2)=> vModel.links[id]={state:state, branches:{}, x1:x1,y1:y1,x2:x2,y2:y2};
 
-var model_render=(json,__,tiles,renderGraph)=>{
-  // VIEW MODEL
-	json.cells.map((d)=> addCell(d[0],d[1]) )  // k state
-	json.links.map((d,__,args)=>{ 
-		args=d[0].split('_'); 
-		addLink(d[0],d[1],x(args[0]),y(args[0]),x(args[2]),y(args[2]));
-	});
-
-  $('svg').remove();
-  $('body').html('');
-  var svg=SVGnode('svg');
-  $(svg).attr({width:1000, height:1000});
-  $('body').append(svg);
-  renderGraph=(svg,__,$gl,$gc)=>{
-    $gl=append($(svg),$(SVGnode('g')));
-    $gc=append($(svg),$(SVGnode('g')));
-    $.map(links,(d,id,__,args)=> $gl.append(
-			line($gl,d.x1,d.y1,d.x2,d.y2,{placed:'gray',on:'black'}[d.state],{placed:1,on:2}[d.state])
-				.attr('class','link_'+id)
-		));
-    $.map(cells,(d,id)=> $gc.append(
-			$(SVGnode('circle'))
-				.attr({'class':'cell_'+id, cx:x(id),cy:y(id), r:6, fill:{placed:'gray',on:'green'}[d.state]})
-    ));
-    return svg;
-  };
-  
-  var tiles=range(model.nRow*model.nCol);
-  tiles.map((d,k,__,i=model.col(k),j=model.row(k))=>{ // make a tile for ea cell, put whole graph on ea tile
-    renderGraph(append($(svg),$(SVGnode('svg'))
-      .attr({'id':'tile_'+k, width:301, height:301, x:i*(spacing+5)*model.nCol, y:j*(spacing+5)*model.nRow})
-    ));
-    $('#tile_'+k+' .cell_'+k).attr({ r:9});
+  json.cells.map((d)=> addCell(d[0],d[1]) )  // k state
+  json.links.map((d,__,args)=>{ 
+    args=d[0].split('_'); 
+    addLink(d[0],d[1],x(args[0]),y(args[0]),x(args[2]),y(args[2]));
   });
-  tiles.map((d,k,__,i=model.col(k),j=model.row(k))=>{ // put a tree on ea tile
-    json.trees[k] && json.trees[k].map((d,__,node)=>{      
-        node=$('#tile_'+k+' .link_'+d)[0];
-        $(node).attr({ stroke:'yellow','stroke-width':7})
-        node.parentElement.appendChild(node);  //  remove and append, so appears on top
-    })
-  });  
-};
+  vModel.trees=json.trees;
+
+  return vModel;
+}; 
+const modelForcesViewChange=($p,json,__)=> renderTiles($p,json.nRow,json.nCol,VModel(json));
 //================================================================================ 
 var socket = io.connect('http://localhost:8060');
 
 $(document).ready((__)=>{ 
   socket.emit('reqFullState','I want model.send()'); // or $('#poke').click(()=> ..	)
 });
-socket.on('fullState',  (s)=>{ model_render(JSON.parse(s)); });
-socket.on('changeState',(s)=>{ model_render(JSON.parse(s)); });// trees are empty
+var gs='';  // debug
+socket.on('fullState',  (s)=> modelForcesViewChange($('body').html('www'),JSON.parse(s)) );
+socket.on('changeState',(s)=> {gs=s;modelForcesViewChange($('body').html('xxx'),JSON.parse(s)); });
 
 //var changesSocket = io('/stateChanges'); // from Gregory
 </script>

@@ -1,18 +1,21 @@
 //const getFormattedTime=()=> (new Date()).toLocaleTimeString();  // not used
-
+//=================================================== model.js - ie this could be a module LLLL
 var { range} = require('./utility.js'); // { randumb, Math_random, random, append, add, range}
 //  { nCol, nRow, col, row, x, y  } = require('../common/layout.js');
 var { Model }  = require('./Model.js'); 
 // we need a another file that creates an instance of the model  zzzzz
 var model      = Model();
 model.configure(5,4);
-range(31).map(()=> model.doRandomOp());
 model.observerCBs=[];
-setInterval(()=>{ model.doRandomOp(); model.observerCBs.map((d)=> d(model.send()));  },1000);
-//============================================================= communication w/ client
+model.addObserver=(cb)=> model.observerCBs.push(cb);
+range(31).map(()=> model.doRandomOp());
+setInterval(()=>{ model.doRandomOp(); model.observerCBs.map((d)=> d(model.send())); },1000);
+
+//=================================================== communication between client & model
 var http       = require('http'); // http.createServer; listens on a port
 var fs         = require('fs');
-const socketIo = require("socket.io");  // 
+const socketIo = require("socket.io");  
+//var { addObserver as model_observe, send as model_send } = require('./model.js'); //LLLL
 /*
 // the file to be displayed on the client when the req.url in index.html or the default
 // this is good enough for what we want to do
@@ -57,5 +60,5 @@ io.sockets.on('connection',(socket, username)=>{  // socket is an instance of a 
    // on: reqFullState
    // emit: fullState, changeState
   socket.on('reqFullState',(msg)=> socket.emit('fullState', model.send()) );
-  model.observerCBs.push((s)=> socket.emit('changeState',s));
+  model.addObserver((s)=> socket.emit('changeState',s));
 });

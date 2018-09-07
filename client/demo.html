@@ -2,11 +2,12 @@
 <meta charset='utf-8'>
 <script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
 <script  type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script>
-<script src='../server/utility.js'  ></script>
+<script src='../server/utility.js' ></script>
 <script src='../common/layout.js'  ></script>
-<script src='../server/Cell.js' ></script>
-<script src='../server/Link.js' ></script>
-<script src='../server/Model.js'></script>
+<script src='../server/Cell.js'    ></script>
+<script src='../server/Link.js'    ></script>
+<script src='../server/Model.js'   ></script>
+<script src='../common/render.js'  ></script>
 <style>
 *                     { margin: 0;  padding: 0;  outline: none;  box-sizing: border-box; }
 body                  { background: 'white'; margin-top:50; }
@@ -69,97 +70,68 @@ var linksWhichAreOn={};  // debug
 
 var router={  // tbd: cell & link creation and deletion
   cell_update:(s,__,json=JSON.parse(s))=>{
-    cells[json.k].state=json.state;
-    $('.cell_'+json.k).attr({ fill: {placed:'gray',on:'green'}[json.state] });
+////    model.cells[json.k].state=json.state;
+ //   $('.cell_'+json.k).attr({ fill: {placed:'gray',on:'green'}[json.state] });
   },
   link_update:(s,__,json=JSON.parse(s))=>{ 
-    links[json.id].state=json.state;
+////    model.links[json.id].state=json.state;
+    /*
     $('.link_'+json.id).attr({ stroke: {placed:'orange',on:'black'}[json.state] });
     $.map(links[json.id].branches,(d,k)=> 
       $('#tile_'+k+' .link_'+json.id).attr({ stroke: 'yellow','stroke-width':7,})
     );
+    */
   },
   tree_branch:(s,__,json=JSON.parse(s))=>{
-    links[json.linkID].branches[json.treeID]=true;
-    $('#tile_'+json.treeID+' .link_'+json.linkID).attr({ stroke: 'yellow','stroke-width':7,});
+////    model.links[json.linkID].branches[json.treeID]=true;
+  //  $('#tile_'+json.treeID+' .link_'+json.linkID).attr({ stroke: 'yellow','stroke-width':7,});
   }
 };
 
 var stream=[],sp=0;
 var recvr=(s,__,json=JSON.parse(s))=> stream.push(s);  // TBD:  put in array and pull out and play
+
 var pid=setInterval((__,s=stream[sp])=>{
-  s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })
+  s!=undefined && $.map(JSON.parse(s),(s,k)=>{/*  router[k](s); */ sp+=1; 
+  
+  modelForcesViewChange($('body').html(''),JSON.parse(model.send())); })
 },100);
+
 /*
 replay stream:
   $('body').html('')
   model_configure(5,4); 
   linksWhichAreOn={};
-  model_render(JSON.parse(model_send()));  // sream is 240 in length
+  modelForcesViewChange(JSON.parse(model_send()));  // sream is 240 in length
   sp=0;
 
   var pid=setInterval((__,s=stream[sp])=>{
     s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })
   },100);  
 */
-//================================================================================ VIEW
-var model=Model();  // *****
-var cells={};
-var addCell=(k,state)=> cells[k]={ state:state, cx:x(k),cy:y(k) };
-var links={}; // have branches
-var addLink=(id,state,x1,y1,x2,y2)=> links[id]={state:state, branches:{}, x1:x1,y1:y1,x2:x2,y2:y2};
 
-var model_render=(json,__,tiles,renderGraph)=>{
-  // VIEW MODEL
-	json.cells.map((d)=> addCell(d[0],d[1]) )  // k state
-	json.links.map((d,__,args)=>{ 
-		args=d[0].split('_'); 
-		addLink(d[0],d[1],x(args[0]),y(args[0]),x(args[2]),y(args[2]));
-	});
+const VModel=(json,__,vModel={cells:{},links:{},trees:'-'},addCell,addLink)=>{
+	addCell=(k,state)=> vModel.cells[k]={ state:state, cx:x(k),cy:y(k) };
+	addLink=(id,state,x1,y1,x2,y2)=> vModel.links[id]={state:state, branches:{}, x1:x1,y1:y1,x2:x2,y2:y2};
 
-  $('svg').remove();
-  $('body').html('');
-  var svg=SVGnode('svg');
-  $(svg).attr({width:1000, height:1000});
-  $('body').append(svg);
-  renderGraph=(svg,__,$gl,$gc)=>{
-    $gl=append($(svg),$(SVGnode('g')));
-    $gc=append($(svg),$(SVGnode('g')));
-    $.map(links,(d,id,__,args)=> $gl.append(
-			line($gl,d.x1,d.y1,d.x2,d.y2,{placed:'gray',on:'black'}[d.state],{placed:1,on:2}[d.state])
-				.attr('class','link_'+id)
-		));
-    $.map(cells,(d,id)=> $gc.append(
-			$(SVGnode('circle'))
-				.attr({'class':'cell_'+id, cx:d.cx,cy:d.cy, r:6, fill:{placed:'gray',on:'green'}[d.state]})
-    ));
-    return svg;
-  };
-  
-  var tiles=range(model.nRow*model.nCol);
-  tiles.map((d,k,__,i=col(k),j=row(k))=>{ // make a tile for ea cell, put whole graph on ea tile
-    renderGraph(append($(svg),$(SVGnode('svg'))
-      .attr({'id':'tile_'+k, width:301, height:301, x:i*(spacing+5)*model.nCol, y:j*(spacing+5)*model.nRow})
-    ));
-    $('#tile_'+k+' .cell_'+k).attr({ r:9});
+  json.cells.map((d)=> addCell(d[0],d[1]) )  // k state
+  json.links.map((d,__,args)=>{ 
+    args=d[0].split('_'); 
+    addLink(d[0],d[1],x(args[0]),y(args[0]),x(args[2]),y(args[2]));
   });
-  tiles.map((d,k,__,i=col(k),j=row(k))=>{ // put a tree on ea tile
-    json.trees[k] && json.trees[k].map((d,__,node)=>{      
-        node=$('#tile_'+k+' .link_'+d)[0];
-        $(node).attr({ stroke:'yellow','stroke-width':7})
-        node.parentElement.appendChild(node);  //  remove and append, so appears on top
-    })
-  });  
-};
-// ========================================================= 
+  vModel.trees=json.trees;
+
+  return vModel;
+}; 
+var modelForcesViewChange=($p,json,__,vm)=> renderTiles($p,json.nRow,json.nCol,VModel(json));
+//================================================================================ VIEW
+var model=Model(); model.configure(5,4);
 $(document).ready(function(__,svg,base1,base2){ 
- // controls();
-  model.configure(5,4);   // ***** 
-  model_render(JSON.parse(model.send()));    // ***** 
+  modelForcesViewChange($('body').html(''),JSON.parse(model.send()));    // ***** 
 
   // immediately render the model
-  stream.map((s)=>{
-    s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); }); 
+  stream.map((s)=>{  // at this point stream has cell_update and link_update methods for placing
+    s!=undefined && $.map(JSON.parse(s),(s,k)=>{ /*router[k](s);*/ }); 
 //    sp+=1; // NO!!
   });
   sp=stream.length; // OKAY now add addnl ev.s which will be animated
@@ -168,11 +140,11 @@ $(document).ready(function(__,svg,base1,base2){
 //  console.log(stream.length,'unplaced links',model.links.filter((d)=> d.state!='placed').length);
   
   range(31).map(()=> model.doRandomOp()); // ea op should result in a publish to recvr // *****  FKD!!
- // model_render(JSON.parse(model_send()));
+ // modelForcesViewChange($('body').html(''),JSON.parse(model_send()));
   return;
 
   more();  // starts event stream
-  var test=(__,s)=> model_render(JSON.parse(model_send())); // get the whole thing and display it
+  var test=(__,s)=> modelForcesViewChange($('body').html(''),JSON.parse(model_send())); // get the whole thing and display it
   var tr=()=> trPtr=setInterval(test,500);  // refresh the whole thing
   tr();
   setTimeout(()=>{ console.log(opCnt); clearTimeout(trPtr); },6000); // after 6 sec, 31 ops, freeze the display
