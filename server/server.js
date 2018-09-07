@@ -39,7 +39,7 @@ var server=http.createServer((req,res,__,sendFileContent)=>{ // request,response
     res.write('This is the default res. request URL is: ' + req.url); // res.end(); NO!
   }
   else if(req.url === "/index"){
-    sendFileContent("server/getServerState.html", "text/html");
+    sendFileContent("client/index.html", "text/html");
   }
   else if(/^\/[a-zA-Z0-9\/]*.js$/.test(req.url.toString())){
     sendFileContent(req.url.toString().substring(1), "text/javascript");
