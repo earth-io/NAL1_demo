@@ -1,15 +1,8 @@
 //const getFormattedTime=()=> (new Date()).toLocaleTimeString();  // not used
 //=================================================== model.js - ie this could be a module LLLL
-var { range} = require('./utility.js'); // { randumb, Math_random, random, append, add, range}
+var { range } = require('../common/utility.js'); // { randumb, Math_random, random, append, add, range}
 //  { nCol, nRow, col, row, x, y  } = require('../common/layout.js');
-var { Model }  = require('./Model.js'); 
-// we need a another file that creates an instance of the model  zzzzz
-var model      = Model();
-model.configure(5,4);
-model.observerCBs=[];
-model.addObserver=(cb)=> model.observerCBs.push(cb);
-range(31).map(()=> model.doRandomOp());
-setInterval(()=>{ model.doRandomOp(); model.observerCBs.map((d)=> d(model.send())); },1000);
+var { model } = require('../common/aModel.js'); 
 
 //=================================================== communication between client & model
 var http       = require('http'); // http.createServer; listens on a port
@@ -53,7 +46,7 @@ var server=http.createServer((req,res,__,sendFileContent)=>{ // request,response
   }
 });
 
-const portId = 8060;
+const portId = 8060;  // JJJJJ client side must use this same portID
 server.listen(portId,()=> console.log('listening on *:' + portId) ); // what is this cb fn?
 const io = socketIo(server);   // now can connect sockets to server
 io.sockets.on('connection',(socket, username)=>{  // socket is an instance of a connection

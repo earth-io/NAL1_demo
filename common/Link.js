@@ -1,6 +1,10 @@
 if(typeof require!='undefined'){
   var { randumb, Math_random, random, append, add, range} = require('./utility.js');
-  var _ = require('lodash');
+  var _         = require('lodash'    );
+  var { send }  = require('./msgs.js' );
+  var model     = require('./model.js');
+  
+	var recvr=(s)=>{};  // publish to observer which is a socket, no make this a nop
 }
 
 var Link=function(cell1,port1,cell2,port2,__,self){
@@ -66,9 +70,10 @@ var Link=function(cell1,port1,cell2,port2,__,self){
         }
       }
       if(state!=state0){ 
-        recvr( JSON.stringify({
+        send( JSON.stringify({
           link_update:(JSON.stringify({ id:self.id, state:self.state, state0:state0, stateReq:state}) ),
         })  ); 
+  ////      model.observerCBs.map((d)=> d(model.send())); 
       }; // publish
       return self.state; 
     },
@@ -84,8 +89,5 @@ var Link=function(cell1,port1,cell2,port2,__,self){
 };
 
 if(typeof module!='undefined'){ 
-  var stream=[],sp=0;  // not used by node module, but want to avoid undefined, so put this kludge in
-  // tbd: replace recvr with a sock call when using nodejs
-	var recvr=(s,__,json=JSON.parse(s))=> stream.push(s); // recvr is redefined here, as a kludge
   module.exports.Link = Link; 
 } 

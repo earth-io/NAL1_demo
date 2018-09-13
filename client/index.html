@@ -1,10 +1,14 @@
 <!DOCTYPE html>
 <meta charset="utf-8" />
-<title>Socket.io</title>
+<title>server based simulation</title>
 <script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
 <script type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script>
+
 <script src="/socket.io/socket.io.js"></script>
-<script type="text/javascript" src="server/utility.js"></script>
+
+
+
+<script type="text/javascript" src="common/utility.js"></script>
 <script type="text/javascript" src="common/layout.js" ></script>
 <script type="text/javascript" src="common/render.js" ></script>
 <style>
@@ -15,10 +19,9 @@ button                { font: 20px system-ui; margin:5px;}
 .abs                  { position:absolute; }
 </style>
 <body>
-<h1>Communicating using socket.io! 7</h1>
-<p><input type="button" value="get full model from server" id="poke" /></p>
-<ul id="messages"></ul>
+<h1>nodejs based simulation</h1>
 <script>
+$('body').css('background','#DDDDDD');
 //================================================================================ client lib
 var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
 var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
@@ -43,16 +46,23 @@ const VModel=(json,__,vModel={cells:{},links:{},trees:'-'},addCell,addLink)=>{
   return vModel;
 }; 
 const modelForcesViewChange=($p,json,__)=> renderTiles($p,json.nRow,json.nCol,VModel(json));
-//================================================================================ 
-var socket = io.connect('http://localhost:8060');
+</script>
+<p><input type="button" value="get full model from server" id="poke" /></p>
+<ul id="messages"></ul>
 
-$(document).ready((__)=>{ 
-  socket.emit('reqFullState','I want model.send()'); // or $('#poke').click(()=> ..	)
-});
+
+
+<script>
+//================================================================================ 
+var socket = io.connect('http://localhost:8060');   // JJJJJ server side must use this same portID
 var gs='';  // debug
 socket.on('fullState',  (s)=> modelForcesViewChange($('body').html('www'),JSON.parse(s)) );
 socket.on('changeState',(s)=> {gs=s;modelForcesViewChange($('body').html('xxx'),JSON.parse(s)); });
+$(document).ready((__)=>{ 
+  socket.emit('reqFullState','I want model.send()'); // or $('#poke').click(()=> ..	)
+});
 
 //var changesSocket = io('/stateChanges'); // from Gregory
 </script>
+<pre>tbd: timeline and spaceout </pre>
 </body>

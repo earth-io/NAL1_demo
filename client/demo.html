@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
+<title>web page based simulation</title>
 <script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
 <script  type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script>
-<script src='../server/utility.js' ></script>
+<script src='../common/msgs.js'    ></script>
+<script src='../common/utility.js' ></script>
 <script src='../common/layout.js'  ></script>
-<script src='../server/Cell.js'    ></script>
-<script src='../server/Link.js'    ></script>
-<script src='../server/Model.js'   ></script>
-<script src='../common/render.js'  ></script>
+<script src='../common/Cell.js'    ></script>
+<script src='../common/Link.js'    ></script>
+<script src='../common/Model.js'   ></script>
+<script src='../common/aModel.js'  ></script>  <!-- model which calls recvr - but recvr is defined below -->
+<script src='../common/render.js'  ></script>  <!-- uses model -->
 <style>
 *                     { margin: 0;  padding: 0;  outline: none;  box-sizing: border-box; }
 body                  { background: 'white'; margin-top:50; }
@@ -15,21 +18,9 @@ button                { font: 20px system-ui; margin:5px;}
 #content              { position:relative;  margin-top:2px;  margin-left: 5%; }
 .abs                  { position:absolute; }
 </style>
-<div id='controls' style="padding-left: 50px;">
-  <button id='pause'   >pause      </button>   <button id='resume' >resume   </button> <br/>
-  <button id='faster'  >->         </button>   <button id='slower' >+>       </button> <br/>
- <br/>
-</div>
+<body>
+<h1>web page based based simulation</h1>
 <script>
-// orphans that I dont know what to do with yet 
-
-var cell_observers={  
-  update:(cell)=>{}
-};
-var link_observers={  
-  update:(link,treeID,op,data)=>{}
-};
-
 $('body').css('background','#DDDDDD');
 //================================================================================ client lib
 var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
@@ -40,6 +31,28 @@ var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
   return aLine;
 };
 var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
+//================================================================================ VIEW
+const VModel=(json,__,vModel={cells:{},links:{},trees:'-'},addCell,addLink)=>{
+	addCell=(k,state)=> vModel.cells[k]={ state:state, cx:x(k),cy:y(k) };
+	addLink=(id,state,x1,y1,x2,y2)=> vModel.links[id]={state:state, branches:{}, x1:x1,y1:y1,x2:x2,y2:y2};
+
+  json.cells.map((d)=> addCell(d[0],d[1]) )  // k state
+  json.links.map((d,__,args)=>{ 
+    args=d[0].split('_'); 
+    addLink(d[0],d[1],x(args[0]),y(args[0]),x(args[2]),y(args[2]));
+  });
+  vModel.trees=json.trees;
+
+  return vModel;
+}; 
+var modelForcesViewChange=($p,json,__,vm)=> renderTiles($p,json.nRow,json.nCol,VModel(json));
+</script>
+<div id='controls' style="padding-left: 50px;">
+  <button id='pause'   >pause      </button>   <button id='resume' >resume   </button> <br/>
+  <button id='faster'  >->         </button>   <button id='slower' >+>       </button> <br/>
+ <br/>
+</div>
+<script>
 // ========================================================= CONSOLE/CONTROL
 /* time lines controls that might be used latter
 var controls=()=>{
@@ -65,81 +78,32 @@ var attempt=(__,dt)=> paused ?  50 : (random(ops)() ?  DT : 0) ; // dont do anyt
 // the 'work' is not done by more,  it is done by a fn called within attempt
 var more=()=> setTimeout(more,attempt());  // attempt could be inlined, attempt must return a dt
 
-//================================================================================ ROUTER
-var linksWhichAreOn={};  // debug
-
-var router={  // tbd: cell & link creation and deletion
-  cell_update:(s,__,json=JSON.parse(s))=>{
-////    model.cells[json.k].state=json.state;
- //   $('.cell_'+json.k).attr({ fill: {placed:'gray',on:'green'}[json.state] });
-  },
-  link_update:(s,__,json=JSON.parse(s))=>{ 
-////    model.links[json.id].state=json.state;
-    /*
-    $('.link_'+json.id).attr({ stroke: {placed:'orange',on:'black'}[json.state] });
-    $.map(links[json.id].branches,(d,k)=> 
-      $('#tile_'+k+' .link_'+json.id).attr({ stroke: 'yellow','stroke-width':7,})
-    );
-    */
-  },
-  tree_branch:(s,__,json=JSON.parse(s))=>{
-////    model.links[json.linkID].branches[json.treeID]=true;
-  //  $('#tile_'+json.treeID+' .link_'+json.linkID).attr({ stroke: 'yellow','stroke-width':7,});
-  }
-};
-
-var stream=[],sp=0;
-var recvr=(s,__,json=JSON.parse(s))=> stream.push(s);  // TBD:  put in array and pull out and play
-
-var pid=setInterval((__,s=stream[sp])=>{
-  s!=undefined && $.map(JSON.parse(s),(s,k)=>{/*  router[k](s); */ sp+=1; 
-  
-  modelForcesViewChange($('body').html(''),JSON.parse(model.send())); })
-},100);
-
+//================================================================================ play updates
 /*
 replay stream:
   $('body').html('')
   model_configure(5,4); 
   linksWhichAreOn={};
-  modelForcesViewChange(JSON.parse(model_send()));  // sream is 240 in length
+  modelForcesViewChange(JSON.parse(model_send()));  // stream is 240 in length
   sp=0;
 
   var pid=setInterval((__,s=stream[sp])=>{
     s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })
   },100);  
 */
-
-const VModel=(json,__,vModel={cells:{},links:{},trees:'-'},addCell,addLink)=>{
-	addCell=(k,state)=> vModel.cells[k]={ state:state, cx:x(k),cy:y(k) };
-	addLink=(id,state,x1,y1,x2,y2)=> vModel.links[id]={state:state, branches:{}, x1:x1,y1:y1,x2:x2,y2:y2};
-
-  json.cells.map((d)=> addCell(d[0],d[1]) )  // k state
-  json.links.map((d,__,args)=>{ 
-    args=d[0].split('_'); 
-    addLink(d[0],d[1],x(args[0]),y(args[0]),x(args[2]),y(args[2]));
-  });
-  vModel.trees=json.trees;
-
-  return vModel;
-}; 
-var modelForcesViewChange=($p,json,__,vm)=> renderTiles($p,json.nRow,json.nCol,VModel(json));
+var sp;
+var pid=setInterval((__,s=msgs[sp])=>{   // run the stream
+//console.log('>',sp,msgs.length,s.length,Object.keys(JSON.parse(s))[0])
+  s!=undefined && $.map(JSON.parse(s),(s,k)=>{/*  router[k](s); */ sp+=1; 
+  modelForcesViewChange($('body').html(''),JSON.parse(model.send())); }); // cell_update link_update NO! 
+},500);
 //================================================================================ VIEW
-var model=Model(); model.configure(5,4);
 $(document).ready(function(__,svg,base1,base2){ 
-  modelForcesViewChange($('body').html(''),JSON.parse(model.send()));    // ***** 
+  modelForcesViewChange($('body').html(''),JSON.parse(model.send()));
+  sp=msgs.length; // we rendered everything without animation/delays,  set sp for what we have done so far
+//I am doing the 31 ops in model - not here
+//range(31).map(()=> model.doRandomOp()); // ea op should result in a publish to recvr
 
-  // immediately render the model
-  stream.map((s)=>{  // at this point stream has cell_update and link_update methods for placing
-    s!=undefined && $.map(JSON.parse(s),(s,k)=>{ /*router[k](s);*/ }); 
-//    sp+=1; // NO!!
-  });
-  sp=stream.length; // OKAY now add addnl ev.s which will be animated
-
-//console.log(stream.filter((s)=> s.match('3_3_4_7')));
-//  console.log(stream.length,'unplaced links',model.links.filter((d)=> d.state!='placed').length);
-  
-  range(31).map(()=> model.doRandomOp()); // ea op should result in a publish to recvr // *****  FKD!!
  // modelForcesViewChange($('body').html(''),JSON.parse(model_send()));
   return;
 
@@ -150,6 +114,4 @@ $(document).ready(function(__,svg,base1,base2){
   setTimeout(()=>{ console.log(opCnt); clearTimeout(trPtr); },6000); // after 6 sec, 31 ops, freeze the display
 });
 </script>
-<pre>
-tbd: add model to view, events, stream of ev, timeline and spaceout 
-</pre>
+<pre>tbd: timeline and spaceout </pre>
