@@ -2,15 +2,21 @@
 <meta charset='utf-8'>
 <title>web page based simulation</title>
 <script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
-<script  type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script>
-<script src='../common/msgs.js'    ></script>
-<script src='../common/utility.js' ></script>
-<script src='../common/layout.js'  ></script>
-<script src='../common/Cell.js'    ></script>
-<script src='../common/Link.js'    ></script>
-<script src='../common/Model.js'   ></script>
-<script src='../common/aModel.js'  ></script>  <!-- model which calls recvr - but recvr is defined below -->
-<script src='../common/render.js'  ></script>  <!-- uses model -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script>
+
+<script type="text/javascript" src='../common/msgs.js'    ></script>
+
+<script type="text/javascript" src='../common/utility.js' ></script>
+<script type="text/javascript" src='../common/layout.js'  ></script>
+
+<script type="text/javascript" src='../common/Cell.js'    ></script>
+<script type="text/javascript" src='../common/Link.js'    ></script>
+<script type="text/javascript" src='../common/Model.js'   ></script>
+<script type="text/javascript" src='../common/aModel.js'  ></script>
+
+<script type="text/javascript" src='./ViewModel.js'          ></script>
+<script type="text/javascript" src='./htmlUtil.js'        ></script>
+<script type="text/javascript" src='./render.js'          ></script>  <!-- uses model -->
 <style>
 *                     { margin: 0;  padding: 0;  outline: none;  box-sizing: border-box; }
 body                  { background: 'white'; margin-top:50; }
@@ -20,33 +26,6 @@ button                { font: 20px system-ui; margin:5px;}
 </style>
 <body>
 <h1>web page based based simulation</h1>
-<script>
-$('body').css('background','#DDDDDD');
-//================================================================================ client lib
-var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
-var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
-var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
-  aLine=$(SVGnode('line'))
-  parent.append(aLine.attr({ x1:x1, y1:y1, x2:x2, y2:y2, stroke:stroke, "stroke-width":width }));
-  return aLine;
-};
-var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
-//================================================================================ VIEW
-const VModel=(json,__,vModel={cells:{},links:{},trees:'-'},addCell,addLink)=>{
-	addCell=(k,state)=> vModel.cells[k]={ state:state, cx:x(k),cy:y(k) };
-	addLink=(id,state,x1,y1,x2,y2)=> vModel.links[id]={state:state, branches:{}, x1:x1,y1:y1,x2:x2,y2:y2};
-
-  json.cells.map((d)=> addCell(d[0],d[1]) )  // k state
-  json.links.map((d,__,args)=>{ 
-    args=d[0].split('_'); 
-    addLink(d[0],d[1],x(args[0]),y(args[0]),x(args[2]),y(args[2]));
-  });
-  vModel.trees=json.trees;
-
-  return vModel;
-}; 
-var modelForcesViewChange=($p,json,__,vm)=> renderTiles($p,json.nRow,json.nCol,VModel(json));
-</script>
 <div id='controls' style="padding-left: 50px;">
   <button id='pause'   >pause      </button>   <button id='resume' >resume   </button> <br/>
   <button id='faster'  >->         </button>   <button id='slower' >+>       </button> <br/>
@@ -98,6 +77,8 @@ var pid=setInterval((__,s=msgs[sp])=>{   // run the stream
   modelForcesViewChange($('body').html(''),JSON.parse(model.send())); }); // cell_update link_update NO! 
 },500);
 //================================================================================ VIEW
+$('body').css('background','#DDDDDD');
+var modelForcesViewChange=($p,json,__,vm)=> renderTiles($p,json.nRow,json.nCol,ViewModel(json));
 $(document).ready(function(__,svg,base1,base2){ 
   modelForcesViewChange($('body').html(''),JSON.parse(model.send()));
   sp=msgs.length; // we rendered everything without animation/delays,  set sp for what we have done so far

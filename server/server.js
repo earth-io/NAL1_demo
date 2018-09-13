@@ -1,10 +1,5 @@
 //const getFormattedTime=()=> (new Date()).toLocaleTimeString();  // not used
-//=================================================== model.js - ie this could be a module LLLL
-var { range } = require('../common/utility.js'); // { randumb, Math_random, random, append, add, range}
-//  { nCol, nRow, col, row, x, y  } = require('../common/layout.js');
-var { model } = require('../common/aModel.js'); 
 
-//=================================================== communication between client & model
 var http       = require('http'); // http.createServer; listens on a port
 var fs         = require('fs');
 const socketIo = require("socket.io");  
@@ -49,6 +44,9 @@ var server=http.createServer((req,res,__,sendFileContent)=>{ // request,response
 const portId = 8060;  // JJJJJ client side must use this same portID
 server.listen(portId,()=> console.log('listening on *:' + portId) ); // what is this cb fn?
 const io = socketIo(server);   // now can connect sockets to server
+
+//=================================================== communication between client & model
+var { model } = require('../common/aModel.js'); 
 io.sockets.on('connection',(socket, username)=>{  // socket is an instance of a connection
    // on: reqFullState
    // emit: fullState, changeState
