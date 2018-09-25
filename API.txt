@@ -1,0 +1,55 @@
+John Slater Sept 25 2018
+
+links can only be added if their cells exist
+cells cannot be deleted if there are links attached
+
+the paths our msgs take to get to a destination cell forms a tree
+the destination cell is the root for this tree
+a cell's routing table tells on which port to forward a msg out on in order to reach the root
+if a msg is to be send to A,  msg has A.id
+when a cell the receives this msg, it looks up A.id in the cell's routing table
+the routing tables do not have to be consistent/correct
+['rtAdd',[cellID,portNum,[treeID,..]]]  is only called when a link is connected to cellID,portNum
+
+API, ‘atomic’ information
+
+[['cellAdd',[id,row,col]]]   // cell
+[['linkAdd',[nodeID1,portNum1, nodeID2,portNum2]]  // link
+[['cellDel',[id,id,..]]]
+[['linkDel',[id,id,..]]]
+[['rtAdd',[cellID,portNum,[treeID,..]]]]  // routing info
+[['rtDel',[cellID,portNum,[treeID,..]]]]
+
+port numbering for the purpose of this demo:
+
+      2
+      |
+  3 --o-- 1
+      |\
+      4 \
+         0
+
+a graph:
+   
+   0    1
+   o----o
+   |    |
+   o----o
+   2    3
+   
+example msg,  is array of atomic information:
+
+[
+  ['cellAdd',[0,0,0]], ['rtAdd’,[0,0 tbd->0,[0]]],
+  ['cellAdd',[1,0,1]], ['rtAdd’,[1,0,[1]]],
+  ['cellAdd',[2,1,0]], ['rtAdd’,[2,0,[2]]],
+  ['cellAdd',[3,1,1]], ['rtAdd’,[3,0,[3]]],
+  ['linkAdd',[0,0, 1,2]], 
+    ['rtAdd’,[0,1,[1]]], ['rtAdd’,[1,3,[0]]],
+  ['linkAdd',[1,3, 3,1]],
+    ['rtAdd’,[1,4,[3]]], ['rtAdd’,[3,3,[1,0]]],[‘rtAdd’,[0,1,[3]]], 
+  ['linkAdd',[2,0, 3,2]],
+    ['rtAdd’,[2,1,[3,1,0]]], ['rtAdd’,[3,3,[2]]],[‘rtAdd’,[1,4,[2]]], ['rtAdd’,[0,1,[2]]], 
+  ['linkAdd',[0,3, 2,1]],
+    // no change to routing tables 
+]
