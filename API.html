@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<script  type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
+<body>
+<div id='display'></div>
+<h5>John Slater Sept 25-28 2018</h5>
+<pre>
+links can only be added if their cells exist
+cells cannot be deleted if there are links attached
+
+To route msgs to destination cells, each cell has a router that contains a hash object.
+The key is the cell id of the destination, the value is a list of ports 
+that the cell can send the msg out on in order to reach the destination cell.
+We will call the hash object the router table.
+
+The keys of a cell's router table represent the destination cells it knows about, and can forward to.
+
+When a cell in connected to another cell with a new link,
+it sends on the port of the new link this list of these keys.
+
+The receiving cell
+1) filters this information, 
+2) for each of the destination cells the receiving cell does not know about
+  2a) puts the destination cell id in its router table, along with the receiving port,
+  2b) sends this destination cell out on the other ports (ie all except the receiving port)
+
+For our API,  the server sends a rtAdd msg when a cell adds to its routing table.
+The allows the client to construct its View Model.
+
+====== API ======
+
+cell port numbering: 
+  0 is the 'self' port
+  there can be 4 or 8 'std' ports,  their angular positioning is not important
+  Alan attaches cables in port number order, so the first cable that gets attached goes 'into' port 1
+
+cellID,treeID,portNum are integers
+
+msg's are arrays of these ‘atomic’ pieces of information:
+
+	{ op:'cellAdd',  payload:[cellID,row,col]}
+	{ op:'linkAdd',  payload:[{ cellID: int ,portNum: int },{ cellID: int ,portNum: int }] }
+	{ op:'cellsDel', payload:[cellID1,..] }
+	{ op:'linksDel', payload:[linkID1,..] }
+	{ op:'rtAdd',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }  // routing info
+	{ op:'rtDel',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }
+
+the graph used to make the example msg below:
+   
+   0    1
+   o----o
+   |    |
+   o----o
+   2    3
+   
+ports naming convention for MMMM
+
+       1    
+       |
+  2 -- x -- 0
+       |
+       3
+              
+MMMM:  if we connect links in order: [0,1],[1,3],[2,3],[0,2]
+
+connect with links [0,1]
+cells={
+  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,         '1':[0] } },
+  '1':{ ports:[     X,     X, '0_1',     X ], router:{ table:{ '1':  X, '0':[2]         } },
+  '2':{ ports:[     X,     X,     X,     X ], router:{ table:{ '2':  X,                 } },
+  '3':{ ports:[     X,     X,     X,     X ], router:{ table:{ '3':  X,                 } },
+}
+
+connect with links [0,1],[1,3]
+cells={
+  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,          '1':[0], 3:[0] } },
+  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          3:[3] } },
+  '2':{ ports:[     X,     X,     X,     X ], router:{ table:{ '2':  X,                         } },
+  '3':{ ports:[     X, '1_3',     X,     X ], router:{ table:{ '3':  X, '0':[1], '1':[1]        } },
+}
+
+connect with links [0,1],[1,3],[2,3],
+cells={
+  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,          '1':[0], '2':[0], 3:[0] } },
+  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          '2':[3], 3:[3] } },
+  '2':{ ports:[ '2_3',     X,     X,     X ], router:{ table:{ '2':  X, '0':[0], '1':[0],          3:[0] } },
+  '3':{ ports:[     X, '1_3', '2_3',     X ], router:{ table:{ '3':  X, '0':[1], '1':[1], '2':[2],       } },
+}
+
+connect with links [0,1],[1,3],[2,3],[0,2]     // n.c. to routing table
+cells={
+  '0':{ ports:[ '0_1',     X,     X, '0_2' ], router:{ table:{ '0':  X,          '1':[0], '2':[0], 3:[0] } },
+  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          '2':[3], 3:[3] } },
+  '2':{ ports:[ '2_3', '0_2',     X,     X ], router:{ table:{ '2':  X, '0':[0], '1':[0],          3:[0] } },
+  '3':{ ports:[     X, '1_3', '2_3',     X ], router:{ table:{ '3':  X, '0':[1], '1':[1], '2':[2],       } },
+}
+</pre><pre>
+socket.send(JSON.stringify( // array of atomic information
+  [  
+    { op:'cellAdd',  payload:[0,0,0]}, { op:'rtAdd', payload:{ port:{ cellID:0 ,portNum:0 }, treeIDs:[0] } },
+    { op:'cellAdd',  payload:[1,0,1]}, { op:'rtAdd', payload:{ port:{ cellID:1 ,portNum:0 }, treeIDs:[1] } },
+    { op:'cellAdd',  payload:[2,1,0]}, { op:'rtAdd', payload:{ port:{ cellID:2 ,portNum:0 }, treeIDs:[2] } },
+    { op:'cellAdd',  payload:[3,1,1]}, { op:'rtAdd', payload:{ port:{ cellID:3 ,portNum:0 }, treeIDs:[3] } },
+    
+    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:1 },{ cellID:1 ,portNum:1 }] },
+    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:1 },{ cellID:1 ,portNum:1 }] },
+      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[1] }   },
+      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 1 }, treeIDs:[0] }   },
+    { op:'linkAdd',  payload:[{ cellID:1 ,portNum:2},{ cellID:3 ,portNum:1 }]  },
+      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 1 }, treeIDs:[3  ] } },
+      { op:'rtAdd',  payload:{ port:{ cellID: 3 ,portNum: 1 }, treeIDs:[1,0] } },
+      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[3  ] } },
+    { op:'linkAdd',  payload:[{ cellID:2 ,portNum:1 },{ cellID:3 ,portNum:2 }] },
+      { op:'rtAdd',  payload:{ port:{ cellID: 2 ,portNum: 1 }, treeIDs:[3,1,0] } },
+      { op:'rtAdd',  payload:{ port:{ cellID: 3 ,portNum: 2 }, treeIDs:[2    ] } },
+      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 2 }, treeIDs:[2    ] } },
+      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[2    ] } },    
+    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:2 },{ cellID:2 ,portNum:2 }] }
+      // no change to routing tables 
+  ]
+);
+</pre>
+</body>
+<script> // keep everything in one file for now so people can run by just cutting a pasting scr code
+//----- from common/util.js 
+var append=($p,$c)=>{ $p.append($c); return $c; };
+//----- from client/htmlUtil.js  
+var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
+var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
+var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
+  aLine=$(SVGnode('line'))
+  parent.append(aLine.attr({ x1:x1, y1:y1, x2:x2, y2:y2, stroke:stroke, "stroke-width":width }));
+  return aLine;
+};
+var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
+</script>
+<script>
+//----- from Gregory
+let foo='tbd';
+//=============== test implementation
+/*   stackoverflow   get the indexes of array elements that satisfy cndn
+ var data = [{prop1:"abc",prop2:"qwe"},{prop1:"xyz",prop2:"qwrq"},{prop1:"abc",prop2:"yutu"}];
+ data.map((_,i)=> i).filter((e)=> data[e].prop1=='abc');
+*/
+const socket= { send:(s,__,buff=JSON.parse(s))=> buff.map((d)=> console.log(d)) } // mock socket.send
+const range=(n)=> [...Array(n).keys()];
+const array2hash=(a,__,o={})=>{ a.map((d,k)=> o[k]=d); return o; }  // TBD: add to utlity.js
+var buff=[]; 
+//buff.send=()=>{ socket.send(JSON.stringify(buff)); buff.length=0; };
+buff.send=()=>{  };
+//--------------- model
+let cells={},links={},bp={},bpr;
+const row=(k)=> bp[k][0];
+const col=(k)=> bp[k][1];
+const getCellID=(row,col,__,c)=>{
+  if(bpr==undefined){ bpr={}; $.map(cells,(d,k)=> bpr[bp[k].join('_')]=k ); } // zzzz kludge, assumes no more new cells
+//cells[row*nCol+col]; // assumes using default row and col calculator
+  c=cells[bpr[[row,col].join('_')]];
+  return (c==undefined) ? undefined : c.k;
+};
+const getCellOnRt =(c)=>{
+ return cells[getCellID(row(c.k)  ,col(c.k)+1)]
+};
+const getCellBelow=(c)=> cells[getCellID(row(c.k)+1,col(c.k)  )];
+const blueprint=(nItems,nCol,__,bp={})=>{ 
+  range(nItems).map((k)=> bp[k]=[Math.floor(k/nCol),k%nCol]);
+  return bp;
+};
+const Cell=(k,__,self)=>{
+  self={ 
+    k:k, 
+    // ie item is cell&port on other end of link attached to port
+    ports:[[self,0]].concat(range(8).map((d)=> undefined)), // [cell,port] on other end PPPP
+    rt:{ /* treeid:port */ }, 
+    rtAdd:(rtData,portNum,sendingNode,sendingPort,__,rtBuf=[])=>{
+      $.map(rtData,(pport,rootID,__)=>{ // pport is unused  CCCC
+        if(self.rt[rootID]==undefined){ 
+          self.rt[rootID]=portNum; rtBuf.push(rootID);
+          self.ports   // propagate added rt info over other links (ie ports 1-8)
+            .slice(1)  // remove p0
+            .filter((d)=> d!=undefined).map((d,p,__,cell2=d[0],port2=d[1],pOut=p+1,o={})=>{
+              o[rootID]=portNum;  // portNum value will not be used  CCCC
+              cell2.rtAdd(o,port2,self,pOut);  // cell2,port2 to what recv this info
+            })
+          ;
+        }
+        if(rtBuf.length>0){ 
+          buff.push({ op:'rtAdd', payload:{ port:{ cellID:self.k, portNum:portNum }, treeIDs:rtBuf } }); 
+        }
+      })
+    }
+  };
+  buff.push({ op:'cellAdd', payload:[self.k,row(k),col(k)] });
+  self.rt[k]=0;
+  buff.push({ op:'rtAdd', payload:{ port:{ cellID:self.k, portNum:0 }, treeIDs:[self.k] } });   
+  return self; 
+};
+const Link=(node1,portNum1, node2,portNum2,__,self,idArray,id)=>{
+  if(portNum1==undefined || portNum2==undefined){ return; } // reject when a port is unavailable
+  idArray=((node1.k<node2.k)? [node1.k,portNum1,node2.k,portNum2] : [node2.k,portNum2,node1.k,portNum1])
+  id=idArray.join('_');
+  self={ id:id, n1:idArray[0],p1:idArray[1],n2:idArray[2],p2:idArray[3] };
+  links[id]=self;
+  buff.push({ op:'linkAdd',  payload:[{ cellID:self.n1 ,portNum:self.p1 },{ cellID:self.n2 ,portNum:self.p2 }] })
+    
+  node1.ports[portNum1]=[node2,portNum2];   // PPPP
+  node2.ports[portNum2]=[node1,portNum1];
+  // node1,portNum1 gets node2.rt from node2,portNum2
+  node1.rtAdd(node2.rt,portNum1,node2,portNum2);
+  node2.rtAdd(node1.rt,portNum2,node1,portNum1);
+};
+const link=(node1,node2,__,p1,p2)=>{  // Alan picks the first available port, so we do too
+  if(node1==undefined || node2==undefined){ return; }
+  p1=node1.ports.map((_,i)=> i).filter((ii)=> node1.ports[ii]==undefined)[0];
+  p2=node2.ports.map((_,i)=> i).filter((ii)=> node2.ports[ii]==undefined)[0];
+//console.log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
+  Link(node1,p1, node2,p2);
+};
+//--------------- tests
+const test_thatImplementsTheSmallExampleAbove=(__)=>{
+  bp=blueprint(4,2);  
+  cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
+  links={};
+  //buff.send();
+  [[0,1]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); }); // 'hand' specified links
+  [[1,3]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); }); // 'hand' specified links
+  //buff.send();
+  [[3,2],[0,2]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); }); // 'hand' specified links
+  //buff.send();
+};
+const test_withLargerInput_usingGridLayout=(__)=>{
+  bp=blueprint(20,5);
+  cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
+  links={};  
+  // auto generate fabric of links
+  $.map(cells,(c1,__,c2=getCellOnRt(c1) )=>{ (typeof c2)!=undefined && link(c1,c2); });
+  $.map(cells,(c1,__,c2=getCellBelow(c1))=>{ (typeof c2)!=undefined && link(c1,c2); });  
+  $.map(cells,(c1,__,c2=cells[getCellID(row(c1.k)+1,col(c1.k)+1)])=>{ (typeof c2)!=undefined && link(c1,c2); }); // bot rt   diag
+  $.map(cells,(c1,__,c2=cells[getCellID(row(c1.k)-1,col(c1.k)+1)])=>{ (typeof c2)!=undefined && link(c1,c2); }); // top left diag
+ // buff.send();
+};
+//test_thatImplementsTheSmallExampleAbove();
+test_withLargerInput_usingGridLayout();
+
+// ============================================================= client
+const std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:150, height:100}));
+const $g=std_g();
+$g.html('');
+const $gl=append($g,$(SVGnode('svg')));
+const $gc=append($g,$(SVGnode('svg'))); // cells on top of links
+foo=buff; // DONT use Gregory's stuff for now
+/*  // when row&col is not specified by the Cell constructor, then we need to create bp
+bp={};  // start from scratch
+$.map(foo,(o,__,d=o.payload)=>{ if(o.op=='cellAdd'){ bp[d[0]]=[d[1],d[2]]; } };
+*/   
+$.map(foo,(o,__,d=o.payload)=>{
+  if(o.op=='cellAdd'){ 
+    append($gc,$(SVGnode('circle')).attr({cx:10+bp[d[0]][1]*20,cy:10+bp[d[0]][0]*20,r:5,fill:'green'}));
+  }
+  if(o.op=='linkAdd'){ 
+    line($gl,
+      10+bp[d[0].cellID][1]*20,10+bp[d[0].cellID][0]*20,
+      10+bp[d[1].cellID][1]*20,10+bp[d[1].cellID][0]*20,'black',2).attr({ class:'l_' }); 
+  }
+  if(o.op=='rtAdd'){  // d ::= { port:{ cellID: int ,portNum: int }, treeIDs:[int,..] }  // routing info
+    $.map(d.treeIDs,(rootID,__,c=cells[d.port.cellID],c2)=>{ // we need to find the other side of link
+      if(rootID==3){ 
+        append($gc,$(SVGnode('circle')).attr({id:'c_'+c.k, cx:10+bp[c.k][1]*20,cy:10+bp[c.k][0]*20,r:5,fill:'red'}));
+        c2=c.ports[d.port.portNum][0]; // take the first item
+        if(c2!=undefined){  // ie when the rt entry does not point back to 'itself'
+          line($gl,
+           10+bp[c.k][1]*20,10+bp[c.k][0]*20,
+           10+bp[c2.k][1]*20,10+bp[c2.k][0]*20,'orange',5).attr({ class:'b_' }); 
+        }
+      }
+    });
+  }
+});
+</script>
