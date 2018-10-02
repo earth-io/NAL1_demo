@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
-<script  type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
+<script  src='https://code.jquery.com/jquery-1.12.1.js'></script>
+<script  src='gregoryDataOct012018.js'></script>
 <body>
 <div id='display'></div>
-<h5>John Slater Sept 25-28 2018</h5>
+<h5>John Slater Sept 25-Oct 02 2018</h5>
 <pre>
 links can only be added if their cells exist
 cells cannot be deleted if there are links attached
@@ -44,6 +45,12 @@ msg's are arrays of these ‘atomic’ pieces of information:
 	{ op:'linksDel', payload:[linkID1,..] }
 	{ op:'rtAdd',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }  // routing info
 	{ op:'rtDel',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }
+	
+Gregory Oct 01 2018
+{"messageId": 8, "payload": {"row": 3, "col": 1, "cellName": "8"}, "op": "cellAdd"},
+{"messageId": 9, "payload": [{"CellPort": {"portNum": 1, "cellName": "4"}}, {"CellPort": {"portNum": "1", "cellName": "3"}}], "op": "linkAdd"},
+{"messageId": 10, "payload": {"tree": {"treeName": "4"}, "CellPort": {"portNum": "1", "cellName": "3"}}, "op": "rtAdd"},
+
 
 the graph used to make the example msg below:
    
@@ -135,8 +142,6 @@ var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
 var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
 </script>
 <script>
-//----- from Gregory
-let foo='tbd';
 //=============== test implementation
 /*   stackoverflow   get the indexes of array elements that satisfy cndn
  var data = [{prop1:"abc",prop2:"qwe"},{prop1:"xyz",prop2:"qwrq"},{prop1:"abc",prop2:"yutu"}];
@@ -150,22 +155,24 @@ var buff=[];
 buff.send=()=>{  };
 //--------------- model
 let cells={},links={},bp={},bpr;
-const row=(k)=> bp[k][0];
-const col=(k)=> bp[k][1];
+const blueprint=(nItems,nCol,__,bp={})=>{ 
+  range(nItems).map((k)=> bp[k]=[k%nCol,Math.floor(k/nCol),]);
+  return bp;
+};
+const col=(k)=> bp[k][0];
+const row=(k)=> bp[k][1];
+
 const getCellID=(row,col,__,c)=>{
   if(bpr==undefined){ bpr={}; $.map(cells,(d,k)=> bpr[bp[k].join('_')]=k ); } // zzzz kludge, assumes no more new cells
 //cells[row*nCol+col]; // assumes using default row and col calculator
-  c=cells[bpr[[row,col].join('_')]];
+  c=cells[bpr[[col,row].join('_')]];
   return (c==undefined) ? undefined : c.k;
 };
 const getCellOnRt =(c)=>{
  return cells[getCellID(row(c.k)  ,col(c.k)+1)]
 };
 const getCellBelow=(c)=> cells[getCellID(row(c.k)+1,col(c.k)  )];
-const blueprint=(nItems,nCol,__,bp={})=>{ 
-  range(nItems).map((k)=> bp[k]=[Math.floor(k/nCol),k%nCol]);
-  return bp;
-};
+
 const Cell=(k,__,self)=>{
   self={ 
     k:k, 
@@ -213,7 +220,7 @@ const link=(node1,node2,__,p1,p2)=>{  // Alan picks the first available port, so
   if(node1==undefined || node2==undefined){ return; }
   p1=node1.ports.map((_,i)=> i).filter((ii)=> node1.ports[ii]==undefined)[0];
   p2=node2.ports.map((_,i)=> i).filter((ii)=> node2.ports[ii]==undefined)[0];
-//console.log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
+console.log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
   Link(node1,p1, node2,p2);
 };
 //--------------- tests
@@ -239,41 +246,72 @@ const test_withLargerInput_usingGridLayout=(__)=>{
   $.map(cells,(c1,__,c2=cells[getCellID(row(c1.k)-1,col(c1.k)+1)])=>{ (typeof c2)!=undefined && link(c1,c2); }); // top left diag
  // buff.send();
 };
-//test_thatImplementsTheSmallExampleAbove();
-test_withLargerInput_usingGridLayout();
+//----- from Gregory Oct 01 2018
+/*
+{"messageId": 8, "payload": {"row": 3, "col": 1, "cellName": "8"}, "op": "cellAdd"},
+{"messageId": 9, "payload": [{"CellPort": {"portNum": 1, "cellName": "4"}}, {"CellPort": {"portNum": "1", "cellName": "3"}}], "op": "linkAdd"},
+{"messageId": 10, "payload": {"tree": {"treeName": "4"}, "CellPort": {"portNum": "1", "cellName": "3"}}, "op": "rtAdd"},
+*/
+const test_gregory=(__,fu)=>{
+  $.map(foo,(o,__,d=o.payload)=>{ if(o.op=='cellAdd'){ bp[d[0]]=[d[1],d[2]]; } });
+	fu=$.map(foo,(v,__,op=v.op,d=v.payload)=>
+		({cellAdd:()=>{ bp[d.cellName]=[d.col,d.row]; return ({ op:'cellAdd', payload: [ d.cellName, d.row, d.col] }); },
+			linkAdd:()=> ({ op:'linkAdd', payload:[{ portNum:d[0].CellPort.portNum, cellID:d[0].CellPort.cellName },{ portNum:d[1].CellPort.portNum, cellID:d[1].CellPort.cellName }] }),
+			rtAdd  :()=> ({ op:'rtAdd'  , payload:{ port:{ cellID: d.CellPort.cellName ,portNum: d.CellPort.portNum }, treeIDs:[d.tree.treeName] }}),
+		})[op]()
+	);
+	foo=fu;
+};
+
+//test_thatImplementsTheSmallExampleAbove(); foo=buff;
+//test_withLargerInput_usingGridLayout(); foo=buff;
+test_gregory();  // uses foo, not buff
 
 // ============================================================= client
+// NOT allowed to use cells or bp, this is server model info
+const vm={ cells:{}, bp:{}, links:{ /* cellID:{portNum:[cellID2,portNum2]},.. */} };  
 const std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:150, height:100}));
 const $g=std_g();
 $g.html('');
-const $gl=append($g,$(SVGnode('svg')));
+const $gl=append($g,$(SVGnode('svg'))); // links and routing table
 const $gc=append($g,$(SVGnode('svg'))); // cells on top of links
-foo=buff; // DONT use Gregory's stuff for now
-/*  // when row&col is not specified by the Cell constructor, then we need to create bp
-bp={};  // start from scratch
-$.map(foo,(o,__,d=o.payload)=>{ if(o.op=='cellAdd'){ bp[d[0]]=[d[1],d[2]]; } };
-*/   
-$.map(foo,(o,__,d=o.payload)=>{
-  if(o.op=='cellAdd'){ 
-    append($gc,$(SVGnode('circle')).attr({cx:10+bp[d[0]][1]*20,cy:10+bp[d[0]][0]*20,r:5,fill:'green'}));
+
+const doOp=(op,d,__,cellName,k,row,col)=>{
+  if(op=='cellAdd'){ 
+    cellName=d[0]; col=d[1]; row=d[2];
+    k=cellName;
+    vm.cells[k]={ k:k, col:col, row:row }; // { k:d.cellName, col:d.col, row:d.row };
+    vm.bp[k]=[col,row];
+    append($gc,$(SVGnode('circle')).attr({cx:10+vm.bp[k][0]*20,cy:10+vm.bp[k][1]*20,r:5,fill:'lime'}));
   }
-  if(o.op=='linkAdd'){ 
+  if(op=='linkAdd'){  
+    if(vm.links[d[0].cellID]==undefined){ vm.links[d[0].cellID]={}; }
+    if(vm.links[d[1].cellID]==undefined){ vm.links[d[1].cellID]={}; }
+    vm.links[d[0].cellID][d[0].portNum]=[d[1].cellID,d[1].portNum];
+    vm.links[d[1].cellID][d[1].portNum]=[d[0].cellID,d[0].portNum];
     line($gl,
-      10+bp[d[0].cellID][1]*20,10+bp[d[0].cellID][0]*20,
-      10+bp[d[1].cellID][1]*20,10+bp[d[1].cellID][0]*20,'black',2).attr({ class:'l_' }); 
+      10+vm.bp[d[0].cellID][0]*20,10+vm.bp[d[0].cellID][1]*20,
+      10+vm.bp[d[1].cellID][0]*20,10+vm.bp[d[1].cellID][1]*20,'black',1).attr({ class:'l_' }); 
   }
-  if(o.op=='rtAdd'){  // d ::= { port:{ cellID: int ,portNum: int }, treeIDs:[int,..] }  // routing info
-    $.map(d.treeIDs,(rootID,__,c=cells[d.port.cellID],c2)=>{ // we need to find the other side of link
+  if(op=='rtAdd'){  // d ::= { port:{ cellID: int ,portNum: int }, treeIDs:[int,..] }  // routing info
+    $.map(d.treeIDs,(rootID,__,k1=d.port.cellID,k2)=>{
+      k2=vm.links[k1][d.port.portNum][0];
       if(rootID==3){ 
-        append($gc,$(SVGnode('circle')).attr({id:'c_'+c.k, cx:10+bp[c.k][1]*20,cy:10+bp[c.k][0]*20,r:5,fill:'red'}));
-        c2=c.ports[d.port.portNum][0]; // take the first item
-        if(c2!=undefined){  // ie when the rt entry does not point back to 'itself'
+        append($gc,$(SVGnode('circle')).attr({id:'c_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
+        append($gc,$(SVGnode('circle')).attr({id:'c_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:3,fill:'yellow'}));
+        if(k2!=undefined){
           line($gl,
-           10+bp[c.k][1]*20,10+bp[c.k][0]*20,
-           10+bp[c2.k][1]*20,10+bp[c2.k][0]*20,'orange',5).attr({ class:'b_' }); 
+           10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
+           10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'orange',5).attr({ class:'b_' }); 
+        }
+        else{
+          console.log(d.port.cellID,d.port.portNum,' does not have a link to another cell')
         }
       }
     });
   }
-});
+};
+//$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
+let cnt= -1;
+let pid=setInterval(()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },50); 
 </script>
