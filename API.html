@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
-<script  src='https://code.jquery.com/jquery-1.12.1.js'></script>
+<script  src='./lib/jquery-1.12.1.js'></script>
 <script  src='gregoryDataOct012018.js'></script>
 <body>
 <div id='display'></div>
-<h5>John Slater Sept 25-Oct 02 2018</h5>
+<h5>John Slater Sept 25-Oct 03 2018</h5>
 <pre>
 links can only be added if their cells exist
 cells cannot be deleted if there are links attached
@@ -39,13 +39,13 @@ cellID,treeID,portNum are integers
 
 msg's are arrays of these ‘atomic’ pieces of information:
 
-	{ op:'cellAdd',  payload:[cellID,row,col]}
-	{ op:'linkAdd',  payload:[{ cellID: int ,portNum: int },{ cellID: int ,portNum: int }] }
-	{ op:'cellsDel', payload:[cellID1,..] }
-	{ op:'linksDel', payload:[linkID1,..] }
-	{ op:'rtAdd',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }  // routing info
-	{ op:'rtDel',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }
-	
+  { op:'cellAdd',  payload:[cellID,row,col]}
+  { op:'linkAdd',  payload:[{ cellID: int ,portNum: int },{ cellID: int ,portNum: int }] }
+  { op:'cellsDel', payload:[cellID1,..] }
+  { op:'linksDel', payload:[linkID1,..] }
+  { op:'rtAdd',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }  // routing info
+  { op:'rtDel',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }
+  
 Gregory Oct 01 2018
 {"messageId": 8, "payload": {"row": 3, "col": 1, "cellName": "8"}, "op": "cellAdd"},
 {"messageId": 9, "payload": [{"CellPort": {"portNum": 1, "cellName": "4"}}, {"CellPort": {"portNum": "1", "cellName": "3"}}], "op": "linkAdd"},
@@ -101,7 +101,8 @@ cells={
   '2':{ ports:[ '2_3', '0_2',     X,     X ], router:{ table:{ '2':  X, '0':[0], '1':[0],          3:[0] } },
   '3':{ ports:[     X, '1_3', '2_3',     X ], router:{ table:{ '3':  X, '0':[1], '1':[1], '2':[2],       } },
 }
-</pre><pre>
+</pre>
+<pre>
 socket.send(JSON.stringify( // array of atomic information
   [  
     { op:'cellAdd',  payload:[0,0,0]}, { op:'rtAdd', payload:{ port:{ cellID:0 ,portNum:0 }, treeIDs:[0] } },
@@ -128,7 +129,7 @@ socket.send(JSON.stringify( // array of atomic information
 );
 </pre>
 </body>
-<script> // keep everything in one file for now so people can run by just cutting a pasting scr code
+<script> // keep everything in one file for now so people can run by just cutting&pasting src code
 //----- from common/util.js 
 var append=($p,$c)=>{ $p.append($c); return $c; };
 //----- from client/htmlUtil.js  
@@ -142,7 +143,8 @@ var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
 var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
 </script>
 <script>
-//=============== test implementation
+// ============================================================= sample implementation to test API
+
 /*   stackoverflow   get the indexes of array elements that satisfy cndn
  var data = [{prop1:"abc",prop2:"qwe"},{prop1:"xyz",prop2:"qwrq"},{prop1:"abc",prop2:"yutu"}];
  data.map((_,i)=> i).filter((e)=> data[e].prop1=='abc');
@@ -153,7 +155,7 @@ const array2hash=(a,__,o={})=>{ a.map((d,k)=> o[k]=d); return o; }  // TBD: add 
 var buff=[]; 
 //buff.send=()=>{ socket.send(JSON.stringify(buff)); buff.length=0; };
 buff.send=()=>{  };
-//--------------- model
+// ============================================================= model
 let cells={},links={},bp={},bpr;
 const blueprint=(nItems,nCol,__,bp={})=>{ 
   range(nItems).map((k)=> bp[k]=[k%nCol,Math.floor(k/nCol),]);
@@ -162,16 +164,14 @@ const blueprint=(nItems,nCol,__,bp={})=>{
 const col=(k)=> bp[k][0];
 const row=(k)=> bp[k][1];
 
-const getCellID=(row,col,__,c)=>{
+const getCellID=(col,row,__,c)=>{
   if(bpr==undefined){ bpr={}; $.map(cells,(d,k)=> bpr[bp[k].join('_')]=k ); } // zzzz kludge, assumes no more new cells
 //cells[row*nCol+col]; // assumes using default row and col calculator
   c=cells[bpr[[col,row].join('_')]];
   return (c==undefined) ? undefined : c.k;
 };
-const getCellOnRt =(c)=>{
- return cells[getCellID(row(c.k)  ,col(c.k)+1)]
-};
-const getCellBelow=(c)=> cells[getCellID(row(c.k)+1,col(c.k)  )];
+const getCellOnRt =(c)=> cells[getCellID(col(c.k)+1, row(c.k)  )];
+const getCellBelow=(c)=> cells[getCellID(col(c.k)  , row(c.k)+1)];
 
 const Cell=(k,__,self)=>{
   self={ 
@@ -182,7 +182,10 @@ const Cell=(k,__,self)=>{
     rtAdd:(rtData,portNum,sendingNode,sendingPort,__,rtBuf=[])=>{
       $.map(rtData,(pport,rootID,__)=>{ // pport is unused  CCCC
         if(self.rt[rootID]==undefined){ 
-          self.rt[rootID]=portNum; rtBuf.push(rootID);
+          self.rt[rootID]=portNum; 
+          //rtBuf.push(rootID);  // the order msgs are sent does not reflect rt change order TTTT
+          buff.push({ op:'rtAdd', payload:{ port:{ cellID:self.k, portNum:portNum }, treeIDs:[rootID] } }); // correct way
+          
           self.ports   // propagate added rt info over other links (ie ports 1-8)
             .slice(1)  // remove p0
             .filter((d)=> d!=undefined).map((d,p,__,cell2=d[0],port2=d[1],pOut=p+1,o={})=>{
@@ -191,13 +194,13 @@ const Cell=(k,__,self)=>{
             })
           ;
         }
-        if(rtBuf.length>0){ 
-          buff.push({ op:'rtAdd', payload:{ port:{ cellID:self.k, portNum:portNum }, treeIDs:rtBuf } }); 
-        }
+      //if(rtBuf.length>0){   TTTT
+      //  buff.push({ op:'rtAdd', payload:{ port:{ cellID:self.k, portNum:portNum }, treeIDs:rtBuf } }); 
+      //}
       })
     }
   };
-  buff.push({ op:'cellAdd', payload:[self.k,row(k),col(k)] });
+  buff.push({ op:'cellAdd', payload:[self.k,col(k),row(k)] });
   self.rt[k]=0;
   buff.push({ op:'rtAdd', payload:{ port:{ cellID:self.k, portNum:0 }, treeIDs:[self.k] } });   
   return self; 
@@ -220,10 +223,58 @@ const link=(node1,node2,__,p1,p2)=>{  // Alan picks the first available port, so
   if(node1==undefined || node2==undefined){ return; }
   p1=node1.ports.map((_,i)=> i).filter((ii)=> node1.ports[ii]==undefined)[0];
   p2=node2.ports.map((_,i)=> i).filter((ii)=> node2.ports[ii]==undefined)[0];
-console.log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
+//console.log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
   Link(node1,p1, node2,p2);
 };
-//--------------- tests
+// ============================================================= client  viewModel + rendering
+// NOT allowed to use cells or bp, this is server model info
+const vm={ 
+  cells:{}, bp:{},
+  links:{ /* cellID:{portNum:[cellID2,portNum2]},.. */}  // keep separate links for ea direction
+}; 
+const std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:150, height:100}));
+const $g=std_g();
+$g.html('');
+const $gl=append($g,$(SVGnode('svg'))); // links and routing table
+const $gc=append($g,$(SVGnode('svg'))); // cells on top of links
+
+const doOp=(op,d,__,cellName,k,row,col)=>{
+  if(op=='cellAdd'){ 
+    cellName=d[0]; col=d[1]; row=d[2];
+    k=cellName;
+    vm.cells[k]={ k:k, col:col, row:row }; // { k:d.cellName, col:d.col, row:d.row };
+    vm.bp[k]=[col,row];
+    append($gc,$(SVGnode('circle')).attr({ id:'c_'+k, cx:10+vm.bp[k][0]*20,cy:10+vm.bp[k][1]*20,r:5,fill:'lime'}));
+  }
+  if(op=='linkAdd'){  
+    if(vm.links[d[0].cellID]==undefined){ vm.links[d[0].cellID]={}; }
+    if(vm.links[d[1].cellID]==undefined){ vm.links[d[1].cellID]={}; }
+    vm.links[d[0].cellID][d[0].portNum]=[d[1].cellID,d[1].portNum];
+    vm.links[d[1].cellID][d[1].portNum]=[d[0].cellID,d[0].portNum];
+    line($gl,
+      10+vm.bp[d[0].cellID][0]*20,10+vm.bp[d[0].cellID][1]*20,
+      10+vm.bp[d[1].cellID][0]*20,10+vm.bp[d[1].cellID][1]*20,'black',1).attr({ class:'l_' }); 
+  }
+  if(op=='rtAdd'){  // d ::= { port:{ cellID: int ,portNum: int }, treeIDs:[int,..] }  // routing info
+    $.map(d.treeIDs,(rootID,__,k1=d.port.cellID,k2)=>{
+      if(vm.links[k1]==undefined || vm.links[k1][d.port.portNum]==undefined){ return; } // we are at the root
+      k2=vm.links[k1][d.port.portNum][0];
+      if(rootID==3){ 
+        append($gc,$(SVGnode('circle')).attr({id:'rtci_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
+        append($gc,$(SVGnode('circle')).attr({id:'rtco_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:3,fill:'yellow'}));
+        if(k2!=undefined){
+          line($gl,
+           10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
+           10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'orange',5).attr({ class:'b_' }); 
+        }
+        else{
+          console.log(d.port.cellID,d.port.portNum,' does not have a link to another cell')
+        }
+      }
+    });
+  }
+};
+// ============================================================= tests: model data + stream
 const test_thatImplementsTheSmallExampleAbove=(__)=>{
   bp=blueprint(4,2);  
   cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
@@ -242,8 +293,8 @@ const test_withLargerInput_usingGridLayout=(__)=>{
   // auto generate fabric of links
   $.map(cells,(c1,__,c2=getCellOnRt(c1) )=>{ (typeof c2)!=undefined && link(c1,c2); });
   $.map(cells,(c1,__,c2=getCellBelow(c1))=>{ (typeof c2)!=undefined && link(c1,c2); });  
-  $.map(cells,(c1,__,c2=cells[getCellID(row(c1.k)+1,col(c1.k)+1)])=>{ (typeof c2)!=undefined && link(c1,c2); }); // bot rt   diag
-  $.map(cells,(c1,__,c2=cells[getCellID(row(c1.k)-1,col(c1.k)+1)])=>{ (typeof c2)!=undefined && link(c1,c2); }); // top left diag
+  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)+1)] )=>{ (typeof c2)!=undefined && link(c1,c2); }); // bot rt   diag
+  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)-1)] )=>{ (typeof c2)!=undefined && link(c1,c2); }); // top left diag
  // buff.send();
 };
 //----- from Gregory Oct 01 2018
@@ -253,64 +304,37 @@ const test_withLargerInput_usingGridLayout=(__)=>{
 {"messageId": 10, "payload": {"tree": {"treeName": "4"}, "CellPort": {"portNum": "1", "cellName": "3"}}, "op": "rtAdd"},
 */
 const test_gregory=(__,fu)=>{
-  $.map(foo,(o,__,d=o.payload)=>{ if(o.op=='cellAdd'){ bp[d[0]]=[d[1],d[2]]; } });
-	fu=$.map(foo,(v,__,op=v.op,d=v.payload)=>
-		({cellAdd:()=>{ bp[d.cellName]=[d.col,d.row]; return ({ op:'cellAdd', payload: [ d.cellName, d.row, d.col] }); },
-			linkAdd:()=> ({ op:'linkAdd', payload:[{ portNum:d[0].CellPort.portNum, cellID:d[0].CellPort.cellName },{ portNum:d[1].CellPort.portNum, cellID:d[1].CellPort.cellName }] }),
-			rtAdd  :()=> ({ op:'rtAdd'  , payload:{ port:{ cellID: d.CellPort.cellName ,portNum: d.CellPort.portNum }, treeIDs:[d.tree.treeName] }}),
-		})[op]()
-	);
-	foo=fu;
+  // not necessary since I require cells are declared before links or rt
+  // since msgs may be out of order, run through the whole stream first, to get the blueprint
+//$.map(foo,(o,__,d=o.payload)=>{ if(o.op=='cellAdd'){ bp[d[0]]=[d[1],d[2]]; } }); // create blueprint
+
+  // reformat Gregory's stuff
+  fu=$.map(foo,(v,__,op=v.op,d=v.payload)=>
+    ({cellAdd:()=>{ 
+        bp[d.cellName]=[d.col,d.row]; 
+        return ({ 
+          op:'cellAdd', 
+          payload: [ d.cellName, d.row, d.col] 
+        }); 
+      },
+      linkAdd:()=> ({ 
+        op:'linkAdd', 
+        payload:[{ portNum:d[0].CellPort.portNum, cellID:d[0].CellPort.cellName },
+                 { portNum:d[1].CellPort.portNum, cellID:d[1].CellPort.cellName } ] 
+      }),
+      rtAdd  :()=> ({ 
+        op:'rtAdd'  , 
+        payload:{ port:{ cellID: d.CellPort.cellName ,portNum: d.CellPort.portNum }, treeIDs:[d.tree.treeName] }}),
+    })[op]()
+  );
+  foo=fu;
 };
 
 //test_thatImplementsTheSmallExampleAbove(); foo=buff;
-//test_withLargerInput_usingGridLayout(); foo=buff;
-test_gregory();  // uses foo, not buff
+test_withLargerInput_usingGridLayout(); foo=buff;
+//test_gregory();  // uses foo, not buff
 
-// ============================================================= client
-// NOT allowed to use cells or bp, this is server model info
-const vm={ cells:{}, bp:{}, links:{ /* cellID:{portNum:[cellID2,portNum2]},.. */} };  
-const std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:150, height:100}));
-const $g=std_g();
-$g.html('');
-const $gl=append($g,$(SVGnode('svg'))); // links and routing table
-const $gc=append($g,$(SVGnode('svg'))); // cells on top of links
 
-const doOp=(op,d,__,cellName,k,row,col)=>{
-  if(op=='cellAdd'){ 
-    cellName=d[0]; col=d[1]; row=d[2];
-    k=cellName;
-    vm.cells[k]={ k:k, col:col, row:row }; // { k:d.cellName, col:d.col, row:d.row };
-    vm.bp[k]=[col,row];
-    append($gc,$(SVGnode('circle')).attr({cx:10+vm.bp[k][0]*20,cy:10+vm.bp[k][1]*20,r:5,fill:'lime'}));
-  }
-  if(op=='linkAdd'){  
-    if(vm.links[d[0].cellID]==undefined){ vm.links[d[0].cellID]={}; }
-    if(vm.links[d[1].cellID]==undefined){ vm.links[d[1].cellID]={}; }
-    vm.links[d[0].cellID][d[0].portNum]=[d[1].cellID,d[1].portNum];
-    vm.links[d[1].cellID][d[1].portNum]=[d[0].cellID,d[0].portNum];
-    line($gl,
-      10+vm.bp[d[0].cellID][0]*20,10+vm.bp[d[0].cellID][1]*20,
-      10+vm.bp[d[1].cellID][0]*20,10+vm.bp[d[1].cellID][1]*20,'black',1).attr({ class:'l_' }); 
-  }
-  if(op=='rtAdd'){  // d ::= { port:{ cellID: int ,portNum: int }, treeIDs:[int,..] }  // routing info
-    $.map(d.treeIDs,(rootID,__,k1=d.port.cellID,k2)=>{
-      k2=vm.links[k1][d.port.portNum][0];
-      if(rootID==3){ 
-        append($gc,$(SVGnode('circle')).attr({id:'c_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
-        append($gc,$(SVGnode('circle')).attr({id:'c_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:3,fill:'yellow'}));
-        if(k2!=undefined){
-          line($gl,
-           10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
-           10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'orange',5).attr({ class:'b_' }); 
-        }
-        else{
-          console.log(d.port.cellID,d.port.portNum,' does not have a link to another cell')
-        }
-      }
-    });
-  }
-};
 //$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
 let cnt= -1;
 let pid=setInterval(()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },50); 
