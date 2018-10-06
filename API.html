@@ -6,8 +6,22 @@
 <div id='display'></div>
 <h5>John Slater Sept 25-Oct 03 2018</h5>
 <pre>
-links can only be added if their cells exist
-cells cannot be deleted if there are links attached
+UI interaction  (tbd: send msg to server and get cellsDel, linksDel, rtDel msgs back from server)
+  click on a cell to kill it and the attached links
+  click on a link to kill it
+  
+CONSOLE OPS 
+  ops to hide links and branches
+    $('.l_').hide();
+    $('.b_').hide()
+    
+Calling
+
+  test_withLargerInput_usingGridLayout(5,4) 
+  
+produces a 5 column x 4 row array of cells, the data is put in the global variable 'vm'
+
+--- Routing table ---
 
 To route msgs to destination cells, each cell has a router that contains a hash object.
 The key is the cell id of the destination, the value is a list of ports 
@@ -30,6 +44,11 @@ The allows the client to construct its View Model.
 
 ====== API ======
 
+ordering requirement
+  links can only be added if their cells exist
+  cells cannot be deleted if there are links attached
+  additions to routing table and only be made a cell and link that already exit
+
 cell port numbering: 
   0 is the 'self' port
   there can be 4 or 8 'std' ports,  their angular positioning is not important
@@ -37,9 +56,9 @@ cell port numbering:
 
 cellID,treeID,portNum are integers
 
-msg's are arrays of these ‘atomic’ pieces of information:
-
-  { op:'cellAdd',  payload:[cellID,row,col]}
+msg's are arrays, containing  these ‘atomic’ pieces of information:
+  { op:'version',  payload: numeric }
+  { op:'tiling',   payload:{ nCols: ,nRows: } }
   { op:'linkAdd',  payload:[{ cellID: int ,portNum: int },{ cellID: int ,portNum: int }] }
   { op:'cellsDel', payload:[cellID1,..] }
   { op:'linksDel', payload:[linkID1,..] }
@@ -105,6 +124,8 @@ cells={
 <pre>
 socket.send(JSON.stringify( // array of atomic information
   [  
+    { op:'version',  payload:1 },
+    { op:'layout' ,  payload:{ nCols:2, nRows:2 } },
     { op:'cellAdd',  payload:[0,0,0]}, { op:'rtAdd', payload:{ port:{ cellID:0 ,portNum:0 }, treeIDs:[0] } },
     { op:'cellAdd',  payload:[1,0,1]}, { op:'rtAdd', payload:{ port:{ cellID:1 ,portNum:0 }, treeIDs:[1] } },
     { op:'cellAdd',  payload:[2,1,0]}, { op:'rtAdd', payload:{ port:{ cellID:2 ,portNum:0 }, treeIDs:[2] } },
@@ -123,8 +144,7 @@ socket.send(JSON.stringify( // array of atomic information
       { op:'rtAdd',  payload:{ port:{ cellID: 3 ,portNum: 2 }, treeIDs:[2    ] } },
       { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 2 }, treeIDs:[2    ] } },
       { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[2    ] } },    
-    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:2 },{ cellID:2 ,portNum:2 }] }
-      // no change to routing tables 
+    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:2 },{ cellID:2 ,portNum:2 }] } // no change to routing tables 
   ]
 );
 </pre>
@@ -155,7 +175,7 @@ const array2hash=(a,__,o={})=>{ a.map((d,k)=> o[k]=d); return o; }  // TBD: add 
 var buff=[]; 
 //buff.send=()=>{ socket.send(JSON.stringify(buff)); buff.length=0; };
 buff.send=()=>{  };
-// ============================================================= model
+// ============================================================= view model
 let cells={},links={},bp={},bpr;
 const blueprint=(nItems,nCol,__,bp={})=>{ 
   range(nItems).map((k)=> bp[k]=[k%nCol,Math.floor(k/nCol),]);
@@ -230,88 +250,129 @@ const link=(node1,node2,__,p1,p2)=>{  // Alan picks the first available port, so
 // NOT allowed to use cells or bp, this is server model info
 const vm={ 
   cells:{}, bp:{},
-  links:{ /* cellID:{portNum:[cellID2,portNum2]},.. */}  // keep separate links for ea direction
+  // currently have separate links for ea direction
+  // this leads ordering confusion,  because 2 separate link msgs can arrive (at different times)
+  links:{ /* cellID:{portNum:[cellID2,portNum2]},.. */}  
 }; 
-const std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:150, height:100}));
-const $g=std_g();
-$g.html('');
-const $gl=append($g,$(SVGnode('svg'))); // links and routing table
-const $gc=append($g,$(SVGnode('svg'))); // cells on top of links
-
+var tiles; // =setup(n)  // used by doOp
+const setup=(n,__,std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:150, height:100})) )=>
+//range(n).map((i,__,$g=std_g())=>{ // fkds up,  $g is [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  range(n).map((i,__,$g)=>{
+    $g=std_g()
+  //console.log($g);  // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  wtf
+    return {
+      $gl  :append($g,$(SVGnode('svg'))), // links and routing table
+      $gc  :append($g,$(SVGnode('svg'))), // cells on top of links
+    }
+  })
+;
 const doOp=(op,d,__,cellName,k,row,col)=>{
   if(op=='cellAdd'){ 
     cellName=d[0]; col=d[1]; row=d[2];
     k=cellName;
     vm.cells[k]={ k:k, col:col, row:row }; // { k:d.cellName, col:d.col, row:d.row };
     vm.bp[k]=[col,row];
-    append($gc,$(SVGnode('circle')).attr({ id:'c_'+k, cx:10+vm.bp[k][0]*20,cy:10+vm.bp[k][1]*20,r:5,fill:'lime'}));
+    tiles.map((t)=>
+      append(t.$gc,$(SVGnode('circle')).attr({ class:'c_'+k, cx:10+vm.bp[k][0]*20,cy:10+vm.bp[k][1]*20,r:5,fill:'lime'}))
+    );
   }
   if(op=='linkAdd'){  
     if(vm.links[d[0].cellID]==undefined){ vm.links[d[0].cellID]={}; }
     if(vm.links[d[1].cellID]==undefined){ vm.links[d[1].cellID]={}; }
     vm.links[d[0].cellID][d[0].portNum]=[d[1].cellID,d[1].portNum];
     vm.links[d[1].cellID][d[1].portNum]=[d[0].cellID,d[0].portNum];
-    line($gl,
-      10+vm.bp[d[0].cellID][0]*20,10+vm.bp[d[0].cellID][1]*20,
-      10+vm.bp[d[1].cellID][0]*20,10+vm.bp[d[1].cellID][1]*20,'black',1).attr({ class:'l_' }); 
+    tiles.map((t)=>
+      line(t.$gl,
+        10+vm.bp[d[0].cellID][0]*20,10+vm.bp[d[0].cellID][1]*20,
+        10+vm.bp[d[1].cellID][0]*20,10+vm.bp[d[1].cellID][1]*20,'silver',3)
+          .attr({ class:'l_ '+
+            ' kl_'+d[0].cellID+' kl_'+d[1].cellID+
+            ' kl2_'+[d[0].cellID,d[1].cellID].join('_')+
+            ' kl2_'+[d[1].cellID,d[0].cellID].join('_')
+          })
+    ); 
   }
   if(op=='rtAdd'){  // d ::= { port:{ cellID: int ,portNum: int }, treeIDs:[int,..] }  // routing info
     $.map(d.treeIDs,(rootID,__,k1=d.port.cellID,k2)=>{
       if(vm.links[k1]==undefined || vm.links[k1][d.port.portNum]==undefined){ return; } // we are at the root
       k2=vm.links[k1][d.port.portNum][0];
-      if(rootID==3){ 
-        append($gc,$(SVGnode('circle')).attr({id:'rtci_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
-        append($gc,$(SVGnode('circle')).attr({id:'rtco_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:3,fill:'yellow'}));
-        if(k2!=undefined){
-          line($gl,
-           10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
-           10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'orange',5).attr({ class:'b_' }); 
+      tiles.map((t,k)=>{      
+        if(rootID==k){   // zzzzzzz kludge
+          append(t.$gc,$(SVGnode('circle')).attr({class:'rtci_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
+          append(t.$gc,$(SVGnode('circle')).attr({class:'rtco_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:3,fill:'yellow'}));
+          if(k2!=undefined){
+            line(t.$gl,
+             10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
+             10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'orange',5).attr({ class:'b_ rt_'+k1 }); 
+          }
+          else{
+            console.log(d.port.cellID,d.port.portNum,' does not have a link to another cell')
+          }
         }
-        else{
-          console.log(d.port.cellID,d.port.portNum,' does not have a link to another cell')
-        }
-      }
+      });
     });
   }
 };
 // ============================================================= tests: model data + stream
-const test_thatImplementsTheSmallExampleAbove=(__)=>{
-  bp=blueprint(4,2);  
+const test_thatImplementsTheSmallExampleAbove=(__,nCol=2,nRow=2)=>{
+  bp=blueprint(nCol*nRow,nCol);  
   cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
   links={};
   //buff.send();
-  [[0,1]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); }); // 'hand' specified links
-  [[1,3]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); }); // 'hand' specified links
+  // 'hand' specified links
+  [[0,1]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); }); 
+  [[1,3]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); });
   //buff.send();
-  [[3,2],[0,2]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); }); // 'hand' specified links
+  [[3,2],[0,2]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); });
   //buff.send();
+  return nCol*nRow;
 };
-const test_withLargerInput_usingGridLayout=(__)=>{
-  bp=blueprint(20,5);
+const test_withLargerInput_usingGridLayout=(nCol=5,nRow=4)=>{
+  bp=blueprint(nCol*nRow,nCol);
   cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
   links={};  
   // auto generate fabric of links
-  $.map(cells,(c1,__,c2=getCellOnRt(c1) )=>{ (typeof c2)!=undefined && link(c1,c2); });
-  $.map(cells,(c1,__,c2=getCellBelow(c1))=>{ (typeof c2)!=undefined && link(c1,c2); });  
-  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)+1)] )=>{ (typeof c2)!=undefined && link(c1,c2); }); // bot rt   diag
-  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)-1)] )=>{ (typeof c2)!=undefined && link(c1,c2); }); // top left diag
- // buff.send();
+  $.map(cells,(c1,__,c2=getCellOnRt(c1) )=> 
+    (typeof c2)!=undefined && link(c1,c2) )
+  ;
+  $.map(cells,(c1,__,c2=getCellBelow(c1))=> 
+    (typeof c2)!=undefined && link(c1,c2) )
+  ;  
+  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)+1)] )=> 
+    (typeof c2)!=undefined && link(c1,c2) ) // bot rt   diag
+  ;
+  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)-1)] )=> 
+    (typeof c2)!=undefined && link(c1,c2) ) // top left diag
+  ;
+  // buff.send();
+  return nCol*nRow;
 };
 //----- from Gregory Oct 01 2018
 /*
-{"messageId": 8, "payload": {"row": 3, "col": 1, "cellName": "8"}, "op": "cellAdd"},
-{"messageId": 9, "payload": [{"CellPort": {"portNum": 1, "cellName": "4"}}, {"CellPort": {"portNum": "1", "cellName": "3"}}], "op": "linkAdd"},
-{"messageId": 10, "payload": {"tree": {"treeName": "4"}, "CellPort": {"portNum": "1", "cellName": "3"}}, "op": "rtAdd"},
+{
+  "messageId": 8, 
+  "op": "cellAdd",
+  "payload": {"row":3, "col":1, "cellName":"8"}, 
+},
+{
+  "messageId": 9, 
+  "op": "linkAdd",
+  "payload": [
+    {"CellPort": {"portNum":"1", "cellName":"4"}}, 
+    {"CellPort": {"portNum":"1", "cellName":"3"}}
+  ], 
+},
+{
+  "messageId": 10,
+  "op": "rtAdd", 
+  "payload": {"tree":{"treeName":"4" }, "CellPort":{"portNum":"1", "cellName":"3" }},
+},
 */
-const test_gregory=(__,fu)=>{
-  // not necessary since I require cells are declared before links or rt
-  // since msgs may be out of order, run through the whole stream first, to get the blueprint
-//$.map(foo,(o,__,d=o.payload)=>{ if(o.op=='cellAdd'){ bp[d[0]]=[d[1],d[2]]; } }); // create blueprint
-
-  // reformat Gregory's stuff
-  fu=$.map(foo,(v,__,op=v.op,d=v.payload)=>
-    ({cellAdd:()=>{ 
-        bp[d.cellName]=[d.col,d.row]; 
+const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the format I use
+  $.map(foo,(v,__,op=v.op,d=v.payload)=>
+    ({
+      cellAdd:()=>{ 
+        bp[d.cellName]=[d.col,d.row]; // assumes msgs come 'in order'
         return ({ 
           op:'cellAdd', 
           payload: [ d.cellName, d.row, d.col] 
@@ -319,23 +380,54 @@ const test_gregory=(__,fu)=>{
       },
       linkAdd:()=> ({ 
         op:'linkAdd', 
-        payload:[{ portNum:d[0].CellPort.portNum, cellID:d[0].CellPort.cellName },
-                 { portNum:d[1].CellPort.portNum, cellID:d[1].CellPort.cellName } ] 
+        payload:[
+          { cellID:d[0].CellPort.cellName, portNum:d[0].CellPort.portNum },
+          { cellID:d[1].CellPort.cellName, portNum:d[1].CellPort.portNum } 
+        ] 
       }),
       rtAdd  :()=> ({ 
         op:'rtAdd'  , 
-        payload:{ port:{ cellID: d.CellPort.cellName ,portNum: d.CellPort.portNum }, treeIDs:[d.tree.treeName] }}),
+        payload:{ 
+          port:{ cellID: d.CellPort.cellName ,portNum: d.CellPort.portNum }, 
+          treeIDs:[d.tree.treeName] 
+        }
+      }),
     })[op]()
   );
-  foo=fu;
-};
+;
 
-//test_thatImplementsTheSmallExampleAbove(); foo=buff;
-test_withLargerInput_usingGridLayout(); foo=buff;
-//test_gregory();  // uses foo, not buff
-
-
+var sz=0;
+//sz=test_thatImplementsTheSmallExampleAbove(); foo=buff;
+sz=test_withLargerInput_usingGridLayout(5,4); foo=buff;
+//foo=test_gregory(foo); sz=10; // uses foo, not buff
+tiles=setup(sz);
 //$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
 let cnt= -1;
-let pid=setInterval(()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },50); 
+let pid=setInterval(
+  ()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },
+  20
+); 
+const behavior=()=>{
+  $(document).on('click','circle',(d,__,id)=>{  // jquery ev delegation 
+    id= $(d.target).attr('class').split('_')[1]; 
+    console.log('request kill',id);
+    delete vm.cells[id];
+    // the server sends a msg to kill cell.id 
+    // and we invoke a .delete methods 
+    // Cells.delete(id)
+    $('.c_'+id).remove();
+    $('.rtci_'+id).remove();
+    $('.rtco_'+id).remove();
+    $('.kl_'+id).remove();
+    $('.rt_'+id).remove();
+  });
+  $(document).on('click','.l_',(d,__,kls,id)=>{
+    kls=$(d.target).attr('class');
+    console.log('request kill link',$('.'+kls.split(' ')[3]),$('.'+kls.split(' ')[4]));
+    $(d.target).remove(); 
+  });
+};
+$( document ).ready(()=>{
+  behavior();
+});
 </script>
