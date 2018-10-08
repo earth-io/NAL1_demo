@@ -1,0 +1,76 @@
+docker stop redis5
+docker rm redis5
+
+docker run --name redis5 -p 6379:6379 -v $HOME/data/redis:/data -d redis:5.0-rc5 redis-server 
+
+
+docker-machine create --driver virtualbox --virtualbox-memory 6000 confluent
+
+docker-machine start confluent
+docker-machine env confluent
+
+docker network create confluent
+
+~/setKafkaHost.sh 
+
+docker stop zookeeper
+docker rm zookeeper
+
+docker run -d \
+    --net=confluent \
+    --name=zookeeper \
+    -p "2181:2181" \
+    -e ZOOKEEPER_CLIENT_PORT=2181 \
+    confluentinc/cp-zookeeper:5.0.0
+
+
+# docker logs zookeeper
+
+
+docker stop kafka
+docker rm kafka
+
+export myIp=192.168.1.81 
+
+docker run -d \
+    --net=confluent \
+    --name=kafka \
+    -p "9092:9092" \
+    -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
+    -e KAFKA_ADVERTISED_HOST_NAME=192.168.1.81   \
+    -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://192.168.1.81:9092 \
+    -e KAFKA_LISTENERS=PLAINTEXT://:9092 \
+    -e KAFKA_BROKER_ID=1 \
+    -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+    confluentinc/cp-kafka:5.0.0
+
+docker logs kafka
+
+
+#troubleshooting
+nc -l 9092
+telnet localhost 9092
+
+
+sudo mkdir -p /data/db
+
+sudo docker pull mongo
+sudo mkdir /data/db
+sudo docker run --name mongo -d -p 27017:27017 -v ~/data:/data/db mongo --noauth --bind_ip=0.0.0.0
+
+#docker pull mongo
+
+docker stop mongo
+docker rm mongo
+docker run --name mongo -d -p 27017:27017 --volume $HOME/data/db:/data/db mongo --noauth --bind_ip=0.0.0.0
+
+docker ps | grep neo4j | awk '{print $1}' | xargs docker stop | xargs docker rm
+
+docker run -d \
+    --publish=7474:7474 --publish=7687:7687 \
+    --volume=$HOME/data/neo4j/data:/data \
+    --volume=$HOME/data/neo4j/logs:/logs \
+    --env NEO4J_AUTH=neo4j/syst3m \
+    neo4j:3.0 
+
+
