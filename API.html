@@ -13,7 +13,10 @@ UI interaction  (tbd: send msg to server and get cellsDel, linksDel, rtDel msgs 
 CONSOLE OPS 
   ops to hide links and branches
     $('.l_').hide();
-    $('.b_').hide()
+    $('.b_').hide();
+    $('.rtco').hide();
+    $('circle').attr({ r:3 });
+    
     
 Calling
 
@@ -231,21 +234,33 @@ const Link=(node1,portNum1, node2,portNum2,__,self,idArray,id)=>{
   id=idArray.join('_');
   self={ id:id, n1:idArray[0],p1:idArray[1],n2:idArray[2],p2:idArray[3] };
   links[id]=self;
+//console.log('linkAdd',self.n1 ,self.p1, self.n2 ,self.p2 );
   buff.push({ op:'linkAdd',  payload:[{ cellID:self.n1 ,portNum:self.p1 },{ cellID:self.n2 ,portNum:self.p2 }] })
-    
+
   node1.ports[portNum1]=[node2,portNum2];   // PPPP
   node2.ports[portNum2]=[node1,portNum1];
   // node1,portNum1 gets node2.rt from node2,portNum2
   node1.rtAdd(node2.rt,portNum1,node2,portNum2);
   node2.rtAdd(node1.rt,portNum2,node1,portNum1);
 };
-const link=(node1,node2,__,p1,p2)=>{  // Alan picks the first available port, so we do too
+const link_using_misc_port=(node1,node2,__,pAvail1,p2Avail,p1,p2)=>{
+  if(node1==undefined || node2==undefined){ return; }
+  p1Avail=node1.ports.map((_,i)=> i).filter((ii)=> node1.ports[ii]==undefined);
+  p2Avail=node2.ports.map((_,i)=> i).filter((ii)=> node2.ports[ii]==undefined);
+  p1=p1Avail[Math.floor(p1Avail.length*Math.random())];
+  p2=p2Avail[Math.floor(p2Avail.length*Math.random())];
+//console.log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
+  Link(node1,p1, node2,p2);
+};
+const link_using_first_available_port_AlansMethod=(node1,node2,__,p1,p2)=>{
   if(node1==undefined || node2==undefined){ return; }
   p1=node1.ports.map((_,i)=> i).filter((ii)=> node1.ports[ii]==undefined)[0];
   p2=node2.ports.map((_,i)=> i).filter((ii)=> node2.ports[ii]==undefined)[0];
 //console.log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
   Link(node1,p1, node2,p2);
 };
+//const link=link_using_first_available_port_AlansMethod; // Alan picks the first available port, so we do too
+const link=link_using_misc_port; 
 // ============================================================= client  viewModel + rendering
 // NOT allowed to use cells or bp, this is server model info
 const vm={ 
@@ -257,13 +272,14 @@ const vm={
 var tiles; // =setup(n)  // used by doOp
 const setup=(n,__,std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:150, height:100})) )=>
 //range(n).map((i,__,$g=std_g())=>{ // fkds up,  $g is [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-  range(n).map((i,__,$g)=>{
+  range(n).map((i,__,$g,$gl,$gc)=>{
     $g=std_g()
   //console.log($g);  // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  wtf
-    return {
-      $gl  :append($g,$(SVGnode('svg'))), // links and routing table
-      $gc  :append($g,$(SVGnode('svg'))), // cells on top of links
-    }
+    $gl=append($g,$(SVGnode('svg')).attr({ class:'gl' }));  // links and routing table
+    append($gl,$(SVGnode('rect'))
+      .attr({ class:'bkgrnd  bkgrnd_'+i, width:"100%", height:"100%", fill:"blue", opacity:0.1 }));
+    $gc=append($g,$(SVGnode('svg')).attr({ class:'gc' }));  // cells on top of links
+    return { $gl:$gl, $gc:$gc, }
   })
 ;
 const doOp=(op,d,__,cellName,k,row,col)=>{
@@ -281,10 +297,11 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
     if(vm.links[d[1].cellID]==undefined){ vm.links[d[1].cellID]={}; }
     vm.links[d[0].cellID][d[0].portNum]=[d[1].cellID,d[1].portNum];
     vm.links[d[1].cellID][d[1].portNum]=[d[0].cellID,d[0].portNum];
+    $('.l_').attr({ stroke:'silver',  'stroke-width':3 })
     tiles.map((t)=>
       line(t.$gl,
         10+vm.bp[d[0].cellID][0]*20,10+vm.bp[d[0].cellID][1]*20,
-        10+vm.bp[d[1].cellID][0]*20,10+vm.bp[d[1].cellID][1]*20,'silver',3)
+        10+vm.bp[d[1].cellID][0]*20,10+vm.bp[d[1].cellID][1]*20,'red',8)
           .attr({ class:'l_ '+
             ' kl_'+d[0].cellID+' kl_'+d[1].cellID+
             ' kl2_'+[d[0].cellID,d[1].cellID].join('_')+
@@ -296,10 +313,12 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
     $.map(d.treeIDs,(rootID,__,k1=d.port.cellID,k2)=>{
       if(vm.links[k1]==undefined || vm.links[k1][d.port.portNum]==undefined){ return; } // we are at the root
       k2=vm.links[k1][d.port.portNum][0];
-      tiles.map((t,k)=>{      
+      $('.bkgrnd'   ).attr({ fill:'blue' });
+      tiles.map((t,k)=>{  
         if(rootID==k){   // zzzzzzz kludge
-          append(t.$gc,$(SVGnode('circle')).attr({class:'rtci_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
-          append(t.$gc,$(SVGnode('circle')).attr({class:'rtco_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:3,fill:'yellow'}));
+          $('.bkgrnd_'+k).attr({ fill:'red' }); 
+          append(t.$gc,$(SVGnode('circle')).attr({class:'rtco rtco_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
+          append(t.$gc,$(SVGnode('circle')).attr({class:'rtci rtci_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:3,fill:'yellow'}));
           if(k2!=undefined){
             line(t.$gl,
              10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
@@ -314,6 +333,8 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
   }
 };
 // ============================================================= tests: model data + stream
+//console.log(typeof tt,typeof tt==undefined)  // undefined, false
+
 const test_thatImplementsTheSmallExampleAbove=(__,nCol=2,nRow=2)=>{
   bp=blueprint(nCol*nRow,nCol);  
   cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
@@ -327,23 +348,43 @@ const test_thatImplementsTheSmallExampleAbove=(__,nCol=2,nRow=2)=>{
   //buff.send();
   return nCol*nRow;
 };
-const test_withLargerInput_usingGridLayout=(nCol=5,nRow=4)=>{
+const test_withLargerInput_usingGridLayout=(nCol=5,nRow=4,__,stuff,lkz=[],linearOrder,randomizedOrder)=>{
   bp=blueprint(nCol*nRow,nCol);
   cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
   links={};  
   // auto generate fabric of links
-  $.map(cells,(c1,__,c2=getCellOnRt(c1) )=> 
-    (typeof c2)!=undefined && link(c1,c2) )
-  ;
-  $.map(cells,(c1,__,c2=getCellBelow(c1))=> 
-    (typeof c2)!=undefined && link(c1,c2) )
-  ;  
-  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)+1)] )=> 
-    (typeof c2)!=undefined && link(c1,c2) ) // bot rt   diag
-  ;
-  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)-1)] )=> 
-    (typeof c2)!=undefined && link(c1,c2) ) // top left diag
-  ;
+  
+//stuff=link;
+  stuff=(c1,c2)=> lkz.push([c1,c2]);
+  $.map(cells,(c1,__,c2=getCellOnRt(c1) )=>{ 
+    if(c2!=undefined){ stuff(c1,c2); }
+  });
+  $.map(cells,(c1,__,c2=getCellBelow(c1))=>{
+    if(c2!=undefined){ stuff(c1,c2); }
+  }); 
+  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)+1)] )=>{
+    if(c2!=undefined){ stuff(c1,c2); } // bot rt   diag
+  });
+  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)-1)] )=>{
+    if(c2!=undefined){ stuff(c1,c2); } // top left diag
+  });
+  
+  linearOrder=()=>{
+    lkz.map((d)=> link(d[0],d[1]) );  // w/o randomize
+  };
+  
+  randomizedOrder=()=>{
+    // randomize the link creation order
+   // console.log(lkz.map((d)=> d[0].k+'-'+d[1].k).join('__'));
+    while(lkz.length>0){ 
+      let dd=lkz.splice(Math.floor(Math.random()*lkz.length),1)[0]; // pick random link
+      link(dd[0],dd[1]); 
+    }
+  };
+  
+//linearOrder();
+  randomizedOrder();
+  
   // buff.send();
   return nCol*nRow;
 };
@@ -398,14 +439,14 @@ const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the f
 
 var sz=0;
 //sz=test_thatImplementsTheSmallExampleAbove(); foo=buff;
-sz=test_withLargerInput_usingGridLayout(5,4); foo=buff;
+sz=test_withLargerInput_usingGridLayout(6,5); foo=buff;   // 5,4
 //foo=test_gregory(foo); sz=10; // uses foo, not buff
 tiles=setup(sz);
 //$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
 let cnt= -1;
 let pid=setInterval(
   ()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },
-  20
+  100
 ); 
 const behavior=()=>{
   $(document).on('click','circle',(d,__,id)=>{  // jquery ev delegation 
@@ -415,11 +456,11 @@ const behavior=()=>{
     // the server sends a msg to kill cell.id 
     // and we invoke a .delete methods 
     // Cells.delete(id)
-    $('.c_'+id).remove();
+    $('.c_'   +id).remove();
     $('.rtci_'+id).remove();
     $('.rtco_'+id).remove();
-    $('.kl_'+id).remove();
-    $('.rt_'+id).remove();
+    $('.kl_'  +id).remove();
+    $('.rt_'  +id).remove();
   });
   $(document).on('click','.l_',(d,__,kls,id)=>{
     kls=$(d.target).attr('class');
