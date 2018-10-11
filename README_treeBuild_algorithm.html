@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>tree building and healing algorithm dev</title>
+<script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/lodash/4.17.2/lodash.js"></script>
+<script type="text/javascript" src="client/htmlUtil.js" ></script>
+<script type="text/javascript" src="common/utility.js"  ></script>
+<body>
+<pre>
+tbd:  oct 02 2018 this project is stalled since I never got an algorithm for tree building and repair
+tbd: break a link logic
+</pre><hr/>
+<script>
+/*
+to simplify the logic, assume
+  cell.state is always 'on'
+  when a link is made or breaks, both ports will know about it and respond independently
+  links stores connections, which is used for rendering connection;  KKKK
+    but does not have anything to do with trees
+*/
+const uuid=((cnt=0)=>
+  ()=> cnt+=1
+)(); 
+const hash=(v,__,s=v.toString(),hash=0)=>{  // I think this must be fkd up  zzz
+  // stackoverflow.com/questions/6122571/simple-non-secure-hash-function-for-javascript
+  if(s.length==0){ return hash; }
+  for(let i=0; i<s.length; i++) {
+    hash = ((hash<<5)-hash)+s.charCodeAt(i);
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return hash;
+}
+const cmnt=(s)=> $('body').append($(Tag('div',s)));
+const layout=(cells,__,nCol=3,row,col)=>{
+  row=(k)=> Math.floor(k/nCol);  // ibid
+  col=(k)=> k%nCol;
+  $.map(cells,(d,__,k=d.k)=>{
+    d.state='on';  // zzzz temp kludge
+    d.cx=10+col(k)*20;
+    d.cy=10+row(k)*20;
+  })   
+};
+const std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:150, height:75}));
+const render=(cells,links,__,$g=std_g())=>{
+  layout(cells);
+  $.map(links,(d,k,__,c1=cells[d],c2=cells[k])=>{
+    line($g,c1.cx,c1.cy,c2.cx,c2.cy,'green',3).attr('class','link_'+c1.id+'_'+c2.id);
+  });
+  $.map(cells,(d,__)=>{
+    append($g,$(SVGnode('circle'))
+      .attr({'class':'cell_'+d.id, cx:d.cx,cy:d.cy, r:5, fill:{placed:'gray',on:'green'}[d.state]})
+    );  
+  });
+};
+const renderTree=(cellID,portNm,__,$g=std_g())=>{
+  layout(cells);
+  $.map(cells,(d,__)=>{
+    append($g,$(SVGnode('circle'))
+      .attr({'class':'cell_'+d.id, cx:d.cx,cy:d.cy, r:5, fill:{placed:'gray',on:'green'}[d.state]})
+    );  
+  });
+  cells[cellID].trees[portNm]
+};
+//========================================================================================
+let cells={}, links={};
+let link_connect_event=(p1,p2,__,self)=>{  // handshake is already done
+  p1.connect(p2);
+  p2.connect(p1);
+  // I assume synchronous behavior
+  links[p1.cell.id]=p2.cell.id;  // for rendering KKKK
+  // now that BOTH ports know how to send and recv we can begin 
+  p1.send('forwardTreeInfo',p1.cell.trees); 
+  p2.send('forwardTreeInfo',p2.cell.trees);
+};
+const Port=(cell,portNum,__,self,portArray=[],forwardTree)=>{
+  forwardTree=(tree,__,rtID=tree.rootID,portNm=tree.portNum,hc=tree.hc+1,tree2)=>{
+    if(cell.trees[rtID]==undefined){ cell.trees[rtID]={}; }
+    if(cell.trees[rtID][portNm]==undefined){   // or a newer version zzzzz  test .ver
+      tree2={ rootID:rtID, portNum:portNm, ver:tree.ver, hc:hc, 
+        portToRoot:self.portNum, portsToLeafs:{}, portsPruned:[] }
+      cell.trees[rtID][portNm]=tree2;
+      self.send('updatePortsToLeafs',rtID,portNm);
+      cell.ports
+        .filter((d)=> d!=self)  // on all the other ports
+        .map((port)=> self.send('forwardTreeInfo',{ rootID:{ portNum:tree2 } })) 
+      ;
+    }
+    else{
+      cell.trees[rtID][portNm].portsPruned.push(portNum);
+    }
+  };
+  self={   
+    cell:cell, 
+    portNum:portNum,
+    connect:(p)=>{ self.send = (a,b,c,d,e,f)=> p.recv(a,b,c,d,e,f); },
+    recv:(label,arg3,arg4,arg5,__)=>{
+      ({
+        'forwardTreeInfo':(treesObj)=>{ // all the trees the sender knows about
+          $.map(treesObj,(portsObj,rootID)=>{
+            $.map(portsObj,(port,portNum)=> {
+              forwardTree(treesObj[rootID][portNum]);
+            })
+          })
+        },
+        'updatePortsToLeafs':(rtID,portNm)=>{  // do we need a version?
+          cell.trees[rtID][portNm].portsToLeafs[self.portNum]=true; // 8 times zzzzzz
+        },
+      })[label](arg3,arg4,arg5);  // zzzz
+    } 
+  }
+  return self;
+};
+const Cell=(k,__,nPorts=8,self,id=uuid(),hid=hash(id))=>{
+  id=k;
+  self={   
+    k:k,  /*positioning hint*/ id:k, //id, // hid,  is simpler to debug if we use id or k
+    agent:'what does this do?',  // zzzz     
+    trees:{}, // self.trees[cellID][portNum] is a tree rooted on cellID and coming out of portNum
+  };
+  self.ports=range(8).map((d,k)=> Port(self,k));
+  self.trees[id]=((__,o={})=>{  // initially is the trees assoc w/self(ie root)
+    $.map(self.ports, // the root cell has a tree for ea port
+      (port)=> o[port.portNum]={ rootID:k, portNum:port.portNum, ver:0,  hc:0, 
+               portToRoot:undefined, portsToLeafs:{}, portsPruned:[] } 
+    );
+    return o;
+  })();
+  return self;
+};
+//========================================================================================
+range(6).map((d)=> cells[d]=Cell(d));
+cmnt('we just made 6 cells:')
+render(cells,links);
+cmnt('link cells 1 & 3:')
+link_connect_event(cells['1'].ports[3],cells['3'].ports[1]);
+render(cells,links);
+cmnt('renderTree, the port tree from port 3 of cell 1:')
+renderTree(cells['1'],3);
+</script>
+</body>
