@@ -70,17 +70,27 @@ replay stream:
     s!=undefined && $.map(JSON.parse(s),(s,k)=>{ router[k](s); sp+=1; })
   },100);  
 */
+/*  disable animation for now
 var sp;
 var pid=setInterval((__,s=msgs[sp])=>{   // run the stream
 //console.log('>',sp,msgs.length,s.length,Object.keys(JSON.parse(s))[0])
-  s!=undefined && $.map(JSON.parse(s),(s,k)=>{/*  router[k](s); */ sp+=1; 
+  s!=undefined && $.map(JSON.parse(s),(s,k)=>{/*  router[k](s); -*-/ sp+=1; 
   modelForcesViewChange($('body').html(''),JSON.parse(model.send())); }); // cell_update link_update NO! 
 },500);
+*/
 //================================================================================ VIEW
 $('body').css('background','#DDDDDD');
-var modelForcesViewChange=($p,json,__,vm)=> renderTiles($p,json.nRow,json.nCol,ViewModel(json));
-$(document).ready(function(__,svg,base1,base2){ 
+var vm=ViewModel();
+var modelForcesViewChange=($p,json,__)=>{
+  renderTiles($p,json.nRow,json.nCol,vm,json);
+};
+$(document).ready(function(__,gxfs){ 
+  gxfs=TiledGraphs($('body').html(''),5,2);
+  gxfs.map((d)=> vm.observers.push((o)=> d.getMsg(o)) );
+  
+  
   modelForcesViewChange($('body').html(''),JSON.parse(model.send()));
+  
   sp=msgs.length; // we rendered everything without animation/delays,  set sp for what we have done so far
 //I am doing the 31 ops in model - not here
 //range(31).map(()=> model.doRandomOp()); // ea op should result in a publish to recvr
