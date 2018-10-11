@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Socket.io</title>
+    </head>
+ 
+    <body>
+        <h1>Communicating with socket.io!</h1>
+
+        <p><input type="button" value="Kafka the server" id="kafka" /></p>
+        <textarea id="queries" name="queries">HHHHHH</textarea><br />
+        <input type="hidden" name="formInstance" value="form1" />
+
+  <main role="main">
+      <ul id="messages">
+      </ul>
+
+      <ul id="messagesChange">
+      </ul>
+
+      <form>
+        <input id="you" type="text" placeholder="??" maxlength="2"></input>
+        <input id="m" autocomplete="off" type="text"></input>
+        <button>Send</button>
+      </form>
+    </main>
+
+        <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            var socket = io.connect('http://localhost:8060');
+            var collectData = []
+
+            // The visitor is asked for their username...
+//            var username = prompt('What\'s your username?');
+            
+            // It's sent with the signal "little_newbie" (to differentiate it from "message")
+//            socket.emit('little_newbie', username);
+
+
+            // When the button is clicked, a "message" is sent to the server
+
+            $('#kafka').click(function () {
+                var mesFromClient  = $('#queries').val()
+                socket.emit('getFullKafkaState', 'Hi server, how are you?' + $('#queries').val());
+                
+ //               alert('The server has a message for you: ' + mesFromClient);
+            })
+
+	    socket.on('replyFullState', function(message) {
+           //     $('#messages').append(message);
+                $('#messages').html(message);
+                collectData.push( message.len);
+              //  alert('The server has a message for you: ' + message);
+            })
+
+
+	    socket.on('replyChangeState', function(message) {
+                $('#messagesChange').append(message);
+            })
+
+            socket.on('to_text', function(message) {
+                $('#messages').append(message);
+                $('#messages').append(message);
+                alert('The server has a message for you: ' + message);
+            })
+
+//            var changesSocket = io('/stateChanges');
+
+
+        </script>
+    </body>
+</html>
+
