@@ -1,17 +1,11 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
 <script  src='./lib/jquery-1.12.1.js'></script>
-<script  src='gregoryDataOct012018.js'></script>
+<script  src='alanData.js'></script>
 <body>
 <div id='display'></div>
 <h5>John Slater Sept 25-Oct 03 2018</h5>
 <pre>
-
-https://github.com/earth-io/NAL1_demo/blob/modules/server/getServerStateKafka.html
-https://github.com/earth-io/NAL1_demo/blob/modules/server/getServerStateKafka.js
-https://github.com/earth-io/NAL1_demo/blob/modules/server/globalView.js
-
-
 UI interaction  (tbd: send msg to server and get cellsDel, linksDel, rtDel msgs back from server)
   click on a cell to kill it and the attached links
   click on a link to kill it
@@ -29,10 +23,6 @@ Calling
   test_withLargerInput_usingGridLayout(5,4) 
   
 produces a 5 column x 4 row array of cells, the data is put in the global variable 'vm'
-
-TBD ---
-Team/John/demos/arrows/dashedCrookedLine.html
-
 
 --- Routing table ---
 
@@ -173,16 +163,6 @@ var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
   parent.append(aLine.attr({ x1:x1, y1:y1, x2:x2, y2:y2, stroke:stroke, "stroke-width":width }));
   return aLine;
 };
-// developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths   TBD: put this in util
-const quadraticArc=(p,x1,y1,x2,y2,clr,wid,__,xm=(x1+x2)/2,ym=(y1+y2)/2,dx=x2-x1,dy=y2-y1)=>
-  append(p,$(SVGnode('path')).attr({ 
-    d:'M'+x1+' '+y1+' Q '+(xm+(dy/4))+' '+(ym-(dx/4))+' '+x2+' '+y2,
-    stroke:clr, 
-    fill:'none',
-    "stroke-width":wid
-  }))
-;
-
 var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
 </script>
 <script>
@@ -319,9 +299,7 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
     vm.links[d[1].cellID][d[1].portNum]=[d[0].cellID,d[0].portNum];
     $('.l_').attr({ stroke:'silver',  'stroke-width':3 })
     tiles.map((t)=>
-      // developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths
-    //line(t.$gl, 
-      quadraticArc(t.$gl,
+      line(t.$gl,
         10+vm.bp[d[0].cellID][0]*20,10+vm.bp[d[0].cellID][1]*20,
         10+vm.bp[d[1].cellID][0]*20,10+vm.bp[d[1].cellID][1]*20,'red',8)
           .attr({ class:'l_ '+
@@ -342,8 +320,7 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
           append(t.$gc,$(SVGnode('circle')).attr({class:'rtco rtco_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
           append(t.$gc,$(SVGnode('circle')).attr({class:'rtci rtci_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:3,fill:'yellow'}));
           if(k2!=undefined){
-          //line(t.$gl,
-            quadraticArc(t.$gl,
+            line(t.$gl,
              10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
              10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'orange',5).attr({ class:'b_ rt_'+k1 }); 
           }
@@ -411,35 +388,6 @@ const test_withLargerInput_usingGridLayout=(nCol=5,nRow=4,__,stuff,lkz=[],linear
   // buff.send();
   return nCol*nRow;
 };
-const test_withLargerInput_usingGridLayout_randomLinking=(nCol=5,nRow=4,__,keys,sz,cnt=0,c_k1,c_k2,lkz={})=>{
-  bp=blueprint(nCol*nRow,nCol);
-  cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
-  keys=Object.keys(cells);
-  sz=nCol*nRow;  // keys.length
-  links={};
-  while(cnt<150){
-    cnt++;  // TTTT
-    let i1=Math.floor(sz*Math.random());
-    let i2=Math.floor(sz*Math.random());
-    c_k1=cells[i1];
-    c_k2=cells[i2];
-    if(
-      c_k1.k!=c_k2.k &&
-      (Math.abs(bp[c_k1.k][0]-bp[c_k2.k][0])<3) &&
-      (Math.abs(bp[c_k1.k][1]-bp[c_k2.k][1])<3) &&
-      lkz[[c_k1.k,c_k2.k].join('_')]==undefined &&
-      lkz[[c_k2.k,c_k1.k].join('_')]==undefined
-    ){
-      link(cells[c_k1.k],cells[c_k2.k]);
-      lkz[c_k1.k,c_k2.k]=true;
-    //cnt+=1;  TTTT
-    }
-
-  }
-  return nCol*nRow;
-}
-
-
 //----- from Gregory Oct 01 2018
 /*
 {
@@ -492,14 +440,13 @@ const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the f
 var sz=0;
 //sz=test_thatImplementsTheSmallExampleAbove(); foo=buff;
 //sz=test_withLargerInput_usingGridLayout(6,5); foo=buff;   // 5,4
-sz=test_withLargerInput_usingGridLayout_randomLinking(5,4); foo=buff; // 5 4
-//foo=test_gregory(foo); sz=10; // uses foo, not buff
+foo=test_gregory(foo); sz=10; // uses foo, not buff
 tiles=setup(sz);
 //$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
 let cnt= -1;
 let pid=setInterval(
   ()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },
-  200
+  100
 ); 
 const behavior=()=>{
   $(document).on('click','circle',(d,__,id)=>{  // jquery ev delegation 
