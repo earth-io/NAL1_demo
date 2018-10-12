@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
 <script  src='./lib/jquery-1.12.1.js'></script>
-<script  src='gregoryDataOct012018.js'></script>
+<script  src='alanData.js'></script>
 <body>
 <div id='display'></div>
 <h5>John Slater Sept 25-Oct 03 2018</h5>
@@ -439,8 +439,8 @@ const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the f
 
 var sz=0;
 //sz=test_thatImplementsTheSmallExampleAbove(); foo=buff;
-sz=test_withLargerInput_usingGridLayout(6,5); foo=buff;   // 5,4
-//foo=test_gregory(foo); sz=10; // uses foo, not buff
+//sz=test_withLargerInput_usingGridLayout(6,5); foo=buff;   // 5,4
+foo=test_gregory(foo); sz=10; // uses foo, not buff
 tiles=setup(sz);
 //$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
 let cnt= -1;
