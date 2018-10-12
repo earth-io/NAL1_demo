@@ -438,15 +438,15 @@ const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the f
 ;
 
 var sz=0;
-//sz=test_thatImplementsTheSmallExampleAbove(); foo=buff;
+sz=test_thatImplementsTheSmallExampleAbove(); foo=buff;
 //sz=test_withLargerInput_usingGridLayout(6,5); foo=buff;   // 5,4
-foo=test_gregory(foo); sz=10; // uses foo, not buff
+//foo=test_gregory(foo); sz=10; // uses foo, not buff
 tiles=setup(sz);
 //$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
 let cnt= -1;
 let pid=setInterval(
   ()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },
-  100
+  50
 ); 
 const behavior=()=>{
   $(document).on('click','circle',(d,__,id)=>{  // jquery ev delegation 
