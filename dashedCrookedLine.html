@@ -2,11 +2,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 duplicate,  OEKM: Team/John/demos/arrows/dashedCrookedLine.html
+<br/>
+jakearchibald.com/2013/animated-line-drawing-svg/
 <script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script src="http://oss.maxcdn.com/libs/snapsvg/0.1.0/snap.svg-min.js"></script>
 <style>
  svg { width:380px; height:200px; padding:10px; border:3px solid rgba(1,255,255,0.3); }
+ @keyframe offset { 100%:{  stroke-dashoffset:0 } }
 </style>
 <pre>1x) create path, 2x) animate traffic, 1+2x) 3x) path.stop() 4x) path.remove 
   5x) continuous 6x) speed 7x) obj w/methods ie parameterize
@@ -15,6 +18,10 @@ duplicate,  OEKM: Team/John/demos/arrows/dashedCrookedLine.html
   I fkd up - I need path1 for background
   
   https://kodhus.com/easings/   *****
+  
+  1940s care, cities and traffic footage
+  Metal Forming Process - What's Actually Happening
+  
   
 </pre>
 <svg id="svgB" viewBox="0 0 190 100"></svg><br/>
@@ -48,7 +55,7 @@ var DataFlowView=(pid,pts,speed=2,__,Int=parseInt,
 	pid2,
 )=>{
 
-	aCycle=()=>{
+	aCycle=()=>{  // attr are snap specific
 		path2.attr({"stroke-dashoffset":26*speed, "stroke-dasharray":"6 20", stroke:'red' })
 			.animate({"stroke-dashoffset":0},deltaT,mina.linear)
 		;
@@ -59,6 +66,26 @@ var DataFlowView=(pid,pts,speed=2,__,Int=parseInt,
 
 DataFlowView("svgB",[[10,10],[100,10],[100,90],[10,90],[10,10]],1);
 
-quadraticArc($('#svgB'),10,10,90,90,'blue',3)
+const arc1base=quadraticArc($('#svgB'),10,10,90,90,'silver',3);
+const arc1=quadraticArc($('#svgB'),10,10,90,90,'red',3);
+const arc1_l=arc1[0].getTotalLength();
+arc1.attr({ "stroke-dasharray":arc1_l+' '+arc1_l,	"stroke-dashoffset":arc1_l })
 
+const path=arc1[0];
+
+path.style.transition = path.style.WebkitTransition ='none';
+var length = path.getTotalLength();
+path.style.strokeDasharray = length/10 + ' ' + length/10;
+path.style.strokeDashoffset = length/5;
+
+// Trigger a layout so styles are calculated & the browser picks up the starting position before animating
+
+var cnt=(length/5);
+pid2=setInterval(()=>{
+    path.getBoundingClientRect();
+    path.style.transition = path.style.WebkitTransition ='stroke-dashoffset 2s ease-in-out';
+    path.style.strokeDashoffset = cnt*= -1;
+  }
+  ,1000
+);
 </script>
