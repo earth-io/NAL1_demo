@@ -13,17 +13,310 @@ messages:
 <hr/>
 changes:
 <ul id="messagesChange"></ul>
+<hr/>
+<div id='display'></div>
+<script> // keep everything in one file for now so people can run by just cutting&pasting src code
+//----- from common/util.js 
+var append=($p,$c)=>{ $p.append($c); return $c; };
+//----- from client/htmlUtil.js  
+var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
+var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
+var line= (parent,x1,y1,x2,y2,stroke,width,__,aLine)=> {
+  aLine=$(SVGnode('line'))
+  parent.append(aLine.attr({ x1:x1, y1:y1, x2:x2, y2:y2, stroke:stroke, "stroke-width":width }));
+  return aLine;
+};
+// developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths   TBD: put this in util
+const quadraticArc=(p,x1,y1,x2,y2,clr,wid,__,xm=(x1+x2)/2,ym=(y1+y2)/2,dx=x2-x1,dy=y2-y1)=>
+  append(p,$(SVGnode('path')).attr({ 
+    d:'M'+x1+' '+y1+' Q '+(xm+(dy/4))+' '+(ym-(dx/4))+' '+x2+' '+y2,
+    stroke:clr, 
+    fill:'none',
+    "stroke-width":wid
+  }))
+;
 
+var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
+</script>
+<script>
+// ============================================================= sample implementation to test API
+//const socket= { send:(s,__,buff=JSON.parse(s))=> buff.map((d)=> console.log(d)) } // mock socket.send
+const range=(n)=> [...Array(n).keys()];
+const array2hash=(a,__,o={})=>{ a.map((d,k)=> o[k]=d); return o; }  // TBD: add to utlity.js
+var buff=[]; 
+//buff.send=()=>{ socket.send(JSON.stringify(buff)); buff.length=0; };
+buff.send=()=>{  };
+// ============================================================= view model
+let cells={},links={},bp={},bpr;
+const blueprint=(nItems,nCol,__,bp={})=>{ 
+  range(nItems).map((k)=> bp[k]=[k%nCol,Math.floor(k/nCol),]);
+  return bp;
+};
+const col=(k)=> bp[k][0];
+const row=(k)=> bp[k][1];
+
+const getCellID=(col,row,__,c)=>{
+  if(bpr==undefined){ bpr={}; $.map(cells,(d,k)=> bpr[bp[k].join('_')]=k ); } // zzzz kludge, assumes no more new cells
+//cells[row*nCol+col]; // assumes using default row and col calculator
+  c=cells[bpr[[col,row].join('_')]];
+  return (c==undefined) ? undefined : c.k;
+};
+const getCellOnRt =(c)=> cells[getCellID(col(c.k)+1, row(c.k)  )];
+const getCellBelow=(c)=> cells[getCellID(col(c.k)  , row(c.k)+1)];
+
+const Cell=(k,__,self)=>{
+  self={ 
+    k:k, 
+    // ie item is cell&port on other end of link attached to port
+    ports:[[self,0]].concat(range(8).map((d)=> undefined)), // [cell,port] on other end PPPP
+    rt:{ /* treeid:port */ }, 
+    rtAdd:(rtData,portNum,sendingNode,sendingPort,__,rtBuf=[])=>{
+      $.map(rtData,(pport,rootID,__)=>{ // pport is unused  CCCC
+        if(self.rt[rootID]==undefined){ 
+          self.rt[rootID]=portNum; 
+          //rtBuf.push(rootID);  // the order msgs are sent does not reflect rt change order TTTT
+          buff.push({ op:'rtAdd', payload:{ port:{ cellID:self.k, portNum:portNum }, treeIDs:[rootID] } }); // correct way
+          
+          self.ports   // propagate added rt info over other links (ie ports 1-8)
+            .slice(1)  // remove p0
+            .filter((d)=> d!=undefined).map((d,p,__,cell2=d[0],port2=d[1],pOut=p+1,o={})=>{
+              o[rootID]=portNum;  // portNum value will not be used  CCCC
+              cell2.rtAdd(o,port2,self,pOut);  // cell2,port2 to what recv this info
+            })
+          ;
+        }
+      //if(rtBuf.length>0){   TTTT
+      //  buff.push({ op:'rtAdd', payload:{ port:{ cellID:self.k, portNum:portNum }, treeIDs:rtBuf } }); 
+      //}
+      })
+    }
+  };
+  buff.push({ op:'cellAdd', payload:[self.k,col(k),row(k)] });
+  self.rt[k]=0;
+  buff.push({ op:'rtAdd', payload:{ port:{ cellID:self.k, portNum:0 }, treeIDs:[self.k] } });   
+  return self; 
+};
+const Link=(node1,portNum1, node2,portNum2,__,self,idArray,id)=>{
+  if(portNum1==undefined || portNum2==undefined){ return; } // reject when a port is unavailable
+  idArray=((node1.k<node2.k)? [node1.k,portNum1,node2.k,portNum2] : [node2.k,portNum2,node1.k,portNum1])
+  id=idArray.join('_');
+  self={ id:id, n1:idArray[0],p1:idArray[1],n2:idArray[2],p2:idArray[3] };
+  links[id]=self;
+//console.log('linkAdd',self.n1 ,self.p1, self.n2 ,self.p2 );
+  buff.push({ op:'linkAdd',  payload:[{ cellID:self.n1 ,portNum:self.p1 },{ cellID:self.n2 ,portNum:self.p2 }] })
+
+  node1.ports[portNum1]=[node2,portNum2];   // PPPP
+  node2.ports[portNum2]=[node1,portNum1];
+  // node1,portNum1 gets node2.rt from node2,portNum2
+  node1.rtAdd(node2.rt,portNum1,node2,portNum2);
+  node2.rtAdd(node1.rt,portNum2,node1,portNum1);
+};
+const link_using_misc_port=(node1,node2,__,pAvail1,p2Avail,p1,p2)=>{
+  if(node1==undefined || node2==undefined){ return; }
+  p1Avail=node1.ports.map((_,i)=> i).filter((ii)=> node1.ports[ii]==undefined);
+  p2Avail=node2.ports.map((_,i)=> i).filter((ii)=> node2.ports[ii]==undefined);
+  p1=p1Avail[Math.floor(p1Avail.length*Math.random())];
+  p2=p2Avail[Math.floor(p2Avail.length*Math.random())];
+//console.log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
+  Link(node1,p1, node2,p2);
+};
+const link_using_first_available_port_AlansMethod=(node1,node2,__,p1,p2)=>{
+  if(node1==undefined || node2==undefined){ return; }
+  p1=node1.ports.map((_,i)=> i).filter((ii)=> node1.ports[ii]==undefined)[0];
+  p2=node2.ports.map((_,i)=> i).filter((ii)=> node2.ports[ii]==undefined)[0];
+//console.log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
+  Link(node1,p1, node2,p2);
+};
+//const link=link_using_first_available_port_AlansMethod; // Alan picks the first available port, so we do too
+const link=link_using_misc_port; 
+// ============================================================= client  viewModel + rendering
+// NOT allowed to use cells or bp, this is server model info
+const vm={ 
+  cells:{}, bp:{},
+  // currently have separate links for ea direction
+  // this leads ordering confusion,  because 2 separate link msgs can arrive (at different times)
+  links:{ /* cellID:{portNum:[cellID2,portNum2]},.. */}  
+}; 
+var tiles; // =setup(n)  // used by doOp
+const setup=(n,__,std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:150, height:100})) )=>
+//range(n).map((i,__,$g=std_g())=>{ // fkds up,  $g is [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  range(n).map((i,__,$g,$gl,$gc)=>{
+    $g=std_g()
+  //console.log($g);  // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  wtf
+    $gl=append($g,$(SVGnode('svg')).attr({ class:'gl' }));  // links and routing table
+    append($gl,$(SVGnode('rect'))
+      .attr({ class:'bkgrnd  bkgrnd_'+i, width:"100%", height:"100%", fill:"blue", opacity:0.1 }));
+    $gc=append($g,$(SVGnode('svg')).attr({ class:'gc' }));  // cells on top of links
+    return { $gl:$gl, $gc:$gc, }
+  })
+;
+const doOp=(op,d,__,cellName,k,row,col)=>{
+  if(op=='cellAdd'){ 
+    cellName=d[0]; col=d[1]; row=d[2];
+    k=cellName;
+    vm.cells[k]={ k:k, col:col, row:row }; // { k:d.cellName, col:d.col, row:d.row };
+    vm.bp[k]=[col,row];
+    tiles.map((t)=>
+      append(t.$gc,$(SVGnode('circle')).attr({ class:'c_'+k, cx:10+vm.bp[k][0]*20,cy:10+vm.bp[k][1]*20,r:5,fill:'lime'}))
+    );
+  }
+  if(op=='linkAdd'){  
+    if(vm.links[d[0].cellID]==undefined){ vm.links[d[0].cellID]={}; }
+    if(vm.links[d[1].cellID]==undefined){ vm.links[d[1].cellID]={}; }
+    vm.links[d[0].cellID][d[0].portNum]=[d[1].cellID,d[1].portNum];
+    vm.links[d[1].cellID][d[1].portNum]=[d[0].cellID,d[0].portNum];
+    $('.l_').attr({ stroke:'silver',  'stroke-width':3 })
+    tiles.map((t)=>{
+      // developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths
+    //line(t.$gl, 
+      quadraticArc(t.$gl,
+        10+vm.bp[d[0].cellID][0]*20,10+vm.bp[d[0].cellID][1]*20,
+        10+vm.bp[d[1].cellID][0]*20,10+vm.bp[d[1].cellID][1]*20,'red',8)
+          .attr({ class:'l_ '+
+            ' kl_'+d[0].cellID+' kl_'+d[1].cellID+
+            ' kl2_'+[d[0].cellID,d[1].cellID].join('_')+
+            ' kl2_'+[d[1].cellID,d[0].cellID].join('_')
+          })
+    }); 
+  }
+  if(op=='rtAdd'){  // d ::= { port:{ cellID: int ,portNum: int }, treeIDs:[int,..] }  // routing info
+    $.map(d.treeIDs,(rootID,__,k1=d.port.cellID,k2)=>{
+      if(vm.links[k1]==undefined || vm.links[k1][d.port.portNum]==undefined){ return; } // we are at the root
+      k2=vm.links[k1][d.port.portNum][0];
+      $('.bkgrnd'   ).attr({ fill:'blue' });
+      tiles.map((t,k)=>{  
+        if(rootID==k){   // zzzzzzz kludge
+          $('.bkgrnd_'+k).attr({ fill:'red' }); 
+          append(t.$gc,$(SVGnode('circle')).attr({class:'rtco rtco_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
+          append(t.$gc,$(SVGnode('circle')).attr({class:'rtci rtci_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:3,fill:'yellow'}));
+          if(k2!=undefined){
+          //line(t.$gl,
+            quadraticArc(t.$gl,
+             10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
+             10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'black',5).attr({ class:'b_ rt_'+k1 }); 
+            quadraticArc(t.$gl,
+             10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
+             10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'orange',4).attr({ class:'b_ rt_'+k1 }); 
+            const arc3=quadraticArc(t.$gl,
+             10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
+             10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'black',4).attr({ class:'b_ rt_'+k1 }); 
+             
+            const path=arc3[0];
+						path.style.transition = path.style.WebkitTransition ='none';
+						var length = 30; // path.getTotalLength();
+						
+						path.style.strokeDasharray = 6 + ' ' + 3;
+						path.style.strokeDashoffset = 9;
+						// Trigger a layout so styles are calculated & the browser picks up the starting position before animating
+						var cnt=0;
+						pid2=setInterval(()=>{
+								path.getBoundingClientRect();
+								path.style.transition = path.style.WebkitTransition ='stroke-dashoffset 2s ease-in-out';
+								path.style.strokeDashoffset = cnt+=(length/5);
+							}
+							,1000
+						);
+          }
+          else{
+            console.log(d.port.cellID,d.port.portNum,' does not have a link to another cell')
+          }
+        }
+      });
+    });
+  }
+};
+
+
+const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the format I use
+  $.map(foo,(v,__,op=v.op,d=v.payload)=>
+    ({
+      cellAdd:()=>{ 
+        bp[d.cellName]=[d.col,d.row]; // assumes msgs come 'in order'
+        return ({ 
+          op:'cellAdd', 
+          payload: [ d.cellName, d.row, d.col] 
+        }); 
+      },
+      linkAdd:()=> ({ 
+        op:'linkAdd', 
+        payload:[
+          { cellID:d[0].CellPort.cellName, portNum:d[0].CellPort.portNum },
+          { cellID:d[1].CellPort.cellName, portNum:d[1].CellPort.portNum } 
+        ] 
+      }),
+      rtAdd  :()=> ({ 
+        op:'rtAdd'  , 
+        payload:{ 
+          port:{ cellID: d.CellPort.cellName ,portNum: d.CellPort.portNum }, 
+          treeIDs:[d.tree.treeName] 
+        }
+      }),
+    })[op]()
+  );
+;
+
+const behavior=()=>{
+  $(document).on('click','circle',(d,__,id)=>{  // jquery ev delegation 
+    id= $(d.target).attr('class').split('_')[1]; 
+    console.log('request kill',id);
+    delete vm.cells[id];
+    // the server sends a msg to kill cell.id 
+    // and we invoke a .delete methods 
+    // Cells.delete(id)
+    $('.c_'   +id).remove();
+    $('.rtci_'+id).remove();
+    $('.rtco_'+id).remove();
+    $('.kl_'  +id).remove();
+    $('.rt_'  +id).remove();
+  });
+  $(document).on('click','.l_',(d,__,kls,id)=>{
+    kls=$(d.target).attr('class');
+    console.log('request kill link',$('.'+kls.split(' ')[3]),$('.'+kls.split(' ')[4]));
+    $(d.target).remove(); 
+  });
+  $(document).on('click','.bkgrnd',(ev,__,tile)=>{
+		tile=$(ev.target).parent().parent();
+	//tile.hide();
+		if(tile.hasClass('zoomed')){
+			tile.removeClass('zoomed');
+			tile.attr({ width:150, height:100 });
+			tile[0].setAttribute('viewBox','0 0 150 100')
+		}
+		else{
+			tile.addClass('zoomed');
+			tile.attr({ width:450, height:300 });
+			tile[0].setAttribute('viewBox','0 0 150 100')
+		}
+		// $('#svgA')[0].setAttribute('viewBox')
+		// $('#svgA')[0].getAttribute('viewBox','0 0 90 90')
+	});
+};
+$( document ).ready(()=>{
+  behavior();
+});
+</script>
 <script>  // file: getServerStateKafka.html
 const socket = io.connect('http://localhost:8060');
 const collectData = [];
 $('#send').click((ev)=> socket.emit('getFullKafkaState',$('#request').val()) );
-socket.on('replyFullState'  ,(msg)=>{ 
+socket.on('replyFullState'  ,(msg,__,data)=>{ 
+   data=JSON.parse(msg);
+   
    $('#messages').html(msg.length);  
-   collectData.push(msg.len); 
+   collectData.push(msg.length); 
+   
+	var sz=0;
+	foo=test_gregory(data); sz=10; // uses foo, not buff
+	tiles=setup(sz);
+	//$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
+	let cnt= -1;
+	let pid=setInterval(
+		()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },
+		200
+	); 
 });
 socket.on('replyChangeState',(msg)=>{ $('#messagesChange').append(msg); });
-socket.on('to_text'         ,(msg)=>{ $('#messages').append(msg); });  // ????
+socket.on('to_text'         ,(msg)=>{ $('#messages'      ).append(msg); });  // ????
 </script>
 </body>
 </html>

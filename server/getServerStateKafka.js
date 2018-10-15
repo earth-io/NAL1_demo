@@ -26,7 +26,7 @@ client.on("error", function (err) {
 });
 
 kafkaServer = '172.16.1.102'
-let topic = 'multicell-ui-raw';
+let topic = 'multicell-ui-raw-small1';
 //let topic = 'multicell-raw';
 //let topic = 'CellAgent';
 let brokers = kafkaServer + ':9092';
