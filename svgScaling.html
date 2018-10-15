@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ svg { padding:10px; border:3px solid rgba(1,255,255,0.3); }
+</style>
+<body>
+<pre>
+zoom out using a viewBox
+</pre>
+<div id='display' />
+<script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
+<script> 
+const range=(n)=> [...Array(n).keys()];
+var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
+var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
+var append=($p,$c)=>{ $p.append($c); return $c; };
+const quadraticArc=(p,x1,y1,x2,y2,clr,wid,__,xm=(x1+x2)/2,ym=(y1+y2)/2,dx=x2-x1,dy=y2-y1)=>
+  append(p,$(SVGnode('path')).attr({ 
+    d:'M'+x1+' '+y1+' Q '+(xm+(dy/4))+' '+(ym-(dx/4))+' '+x2+' '+y2,
+    stroke:clr,  fill:'none', "stroke-width":wid
+  }))
+;
+var SegmentedPoly=(p,pts)=>
+  append(p,$(SVGnode('path')))
+    .attr({ 
+      d:'M'+$.map(pts,(pt)=> pt.join(' ')).join('L'), 
+      fill:"none", stroke:'green', 'stroke-width':"4" 
+    })
+;
+const setup=(n,__,std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:150, height:100})) )=>
+//range(n).map((i,__,$g=std_g())=>{ // fkds up,  $g is [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  range(n).map((i,__,$g,$gl,$gc)=>{
+    $g=std_g()
+  //console.log($g);  // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  wtf
+    $gl=append($g,$(SVGnode('svg')).attr({ class:'gl' }));  // links and routing table
+    append($gl,$(SVGnode('rect'))
+      .attr({ class:'bkgrnd  bkgrnd_'+i, width:"100%", height:"100%", fill:"blue", opacity:0.1 }));
+    $gc=append($g,$(SVGnode('svg')).attr({ class:'gc' }));  // cells on top of links
+    quadraticArc($gc,10,10,90,90,'red',3);
+    SegmentedPoly($gc,[[10,10],[100+10*i,10],[100,90],[10,90],[10,10]],1);
+    return { $gl:$gl, $gc:$gc, }
+  })
+;
+tiles=setup(4);
+
+$(document).on('click','.bkgrnd',(ev,__,tile)=>{
+  tile=$(ev.target).parent().parent();
+//tile.hide();
+  if(tile.hasClass('zoomed')){
+    tile.removeClass('zoomed');
+    tile.attr({ width:150, height:100 });
+    tile[0].setAttribute('viewBox','0 0 150 100')
+  }
+  else{
+    tile.addClass('zoomed');
+    tile.attr({ width:450, height:300 });
+    tile[0].setAttribute('viewBox','0 0 150 100')
+  }
+  // $('#svgA')[0].setAttribute('viewBox')
+	// $('#svgA')[0].getAttribute('viewBox','0 0 90 90')
+});
+</script>
+</body>

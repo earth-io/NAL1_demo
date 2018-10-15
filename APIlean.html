@@ -4,169 +4,12 @@
 <script  src='gregoryDataOct012018.js'></script>
 <body>
 <div id='display'></div>
-<h5>John Slater Sept 25-Oct 03 2018</h5>
 <pre>
+API.hml stripped down to only use Alan's data,
+tbd: integrate w/ Kafka
 
-TBD: 
-make a duplicate
-http://frontendbabel.info/articles/svg-grouping-and-reusing-elements/  might help
-  
-
-http://tavmjong.free.fr/blog/?p=1257  svg and inkscape
-
-https://github.com/earth-io/NAL1_demo/blob/modules/server/getServerStateKafka.html
-https://github.com/earth-io/NAL1_demo/blob/modules/server/getServerStateKafka.js
-https://github.com/earth-io/NAL1_demo/blob/modules/server/globalView.js
-
-
-UI interaction  (tbd: send msg to server and get cellsDel, linksDel, rtDel msgs back from server)
-  click on a cell to kill it and the attached links
-  click on a link to kill it
-  
-CONSOLE OPS 
-  ops to hide links and branches
-    $('.l_').hide();
-    $('.b_').hide();
-    $('.rtco').hide();
-    $('circle').attr({ r:3 });
-    
-    
-Calling
-
-  test_withLargerInput_usingGridLayout(5,4) 
-  
-produces a 5 column x 4 row array of cells, the data is put in the global variable 'vm'
-
-TBD ---
-Team/John/demos/arrows/dashedCrookedLine.html
-
-
---- Routing table ---
-
-To route msgs to destination cells, each cell has a router that contains a hash object.
-The key is the cell id of the destination, the value is a list of ports 
-that the cell can send the msg out on in order to reach the destination cell.
-We will call the hash object the router table.
-
-The keys of a cell's router table represent the destination cells it knows about, and can forward to.
-
-When a cell in connected to another cell with a new link,
-it sends on the port of the new link this list of these keys.
-
-The receiving cell
-1) filters this information, 
-2) for each of the destination cells the receiving cell does not know about
-  2a) puts the destination cell id in its router table, along with the receiving port,
-  2b) sends this destination cell out on the other ports (ie all except the receiving port)
-
-For our API,  the server sends a rtAdd msg when a cell adds to its routing table.
-The allows the client to construct its View Model.
-
-====== API ======
-
-ordering requirement
-  links can only be added if their cells exist
-  cells cannot be deleted if there are links attached
-  additions to routing table and only be made a cell and link that already exit
-
-cell port numbering: 
-  0 is the 'self' port
-  there can be 4 or 8 'std' ports,  their angular positioning is not important
-  Alan attaches cables in port number order, so the first cable that gets attached goes 'into' port 1
-
-cellID,treeID,portNum are integers
-
-msg's are arrays, containing  these ‘atomic’ pieces of information:
-  { op:'version',  payload: numeric }
-  { op:'tiling',   payload:{ nCols: ,nRows: } }
-  { op:'linkAdd',  payload:[{ cellID: int ,portNum: int },{ cellID: int ,portNum: int }] }
-  { op:'cellsDel', payload:[cellID1,..] }
-  { op:'linksDel', payload:[linkID1,..] }
-  { op:'rtAdd',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }  // routing info
-  { op:'rtDel',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }
-  
-Gregory Oct 01 2018
-{"messageId": 8, "payload": {"row": 3, "col": 1, "cellName": "8"}, "op": "cellAdd"},
-{"messageId": 9, "payload": [{"CellPort": {"portNum": 1, "cellName": "4"}}, {"CellPort": {"portNum": "1", "cellName": "3"}}], "op": "linkAdd"},
-{"messageId": 10, "payload": {"tree": {"treeName": "4"}, "CellPort": {"portNum": "1", "cellName": "3"}}, "op": "rtAdd"},
-
-
-the graph used to make the example msg below:
-   
-   0    1
-   o----o
-   |    |
-   o----o
-   2    3
-   
-ports naming convention for MMMM
-
-       1    
-       |
-  2 -- x -- 0
-       |
-       3
-              
-MMMM:  if we connect links in order: [0,1],[1,3],[2,3],[0,2]
-
-connect with links [0,1]
-cells={
-  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,         '1':[0] } },
-  '1':{ ports:[     X,     X, '0_1',     X ], router:{ table:{ '1':  X, '0':[2]         } },
-  '2':{ ports:[     X,     X,     X,     X ], router:{ table:{ '2':  X,                 } },
-  '3':{ ports:[     X,     X,     X,     X ], router:{ table:{ '3':  X,                 } },
-}
-
-connect with links [0,1],[1,3]
-cells={
-  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,          '1':[0], 3:[0] } },
-  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          3:[3] } },
-  '2':{ ports:[     X,     X,     X,     X ], router:{ table:{ '2':  X,                         } },
-  '3':{ ports:[     X, '1_3',     X,     X ], router:{ table:{ '3':  X, '0':[1], '1':[1]        } },
-}
-
-connect with links [0,1],[1,3],[2,3],
-cells={
-  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,          '1':[0], '2':[0], 3:[0] } },
-  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          '2':[3], 3:[3] } },
-  '2':{ ports:[ '2_3',     X,     X,     X ], router:{ table:{ '2':  X, '0':[0], '1':[0],          3:[0] } },
-  '3':{ ports:[     X, '1_3', '2_3',     X ], router:{ table:{ '3':  X, '0':[1], '1':[1], '2':[2],       } },
-}
-
-connect with links [0,1],[1,3],[2,3],[0,2]     // n.c. to routing table
-cells={
-  '0':{ ports:[ '0_1',     X,     X, '0_2' ], router:{ table:{ '0':  X,          '1':[0], '2':[0], 3:[0] } },
-  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          '2':[3], 3:[3] } },
-  '2':{ ports:[ '2_3', '0_2',     X,     X ], router:{ table:{ '2':  X, '0':[0], '1':[0],          3:[0] } },
-  '3':{ ports:[     X, '1_3', '2_3',     X ], router:{ table:{ '3':  X, '0':[1], '1':[1], '2':[2],       } },
-}
-</pre>
-<pre>
-socket.send(JSON.stringify( // array of atomic information
-  [  
-    { op:'version',  payload:1 },
-    { op:'layout' ,  payload:{ nCols:2, nRows:2 } },
-    { op:'cellAdd',  payload:[0,0,0]}, { op:'rtAdd', payload:{ port:{ cellID:0 ,portNum:0 }, treeIDs:[0] } },
-    { op:'cellAdd',  payload:[1,0,1]}, { op:'rtAdd', payload:{ port:{ cellID:1 ,portNum:0 }, treeIDs:[1] } },
-    { op:'cellAdd',  payload:[2,1,0]}, { op:'rtAdd', payload:{ port:{ cellID:2 ,portNum:0 }, treeIDs:[2] } },
-    { op:'cellAdd',  payload:[3,1,1]}, { op:'rtAdd', payload:{ port:{ cellID:3 ,portNum:0 }, treeIDs:[3] } },
-    
-    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:1 },{ cellID:1 ,portNum:1 }] },
-    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:1 },{ cellID:1 ,portNum:1 }] },
-      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[1] }   },
-      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 1 }, treeIDs:[0] }   },
-    { op:'linkAdd',  payload:[{ cellID:1 ,portNum:2},{ cellID:3 ,portNum:1 }]  },
-      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 1 }, treeIDs:[3  ] } },
-      { op:'rtAdd',  payload:{ port:{ cellID: 3 ,portNum: 1 }, treeIDs:[1,0] } },
-      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[3  ] } },
-    { op:'linkAdd',  payload:[{ cellID:2 ,portNum:1 },{ cellID:3 ,portNum:2 }] },
-      { op:'rtAdd',  payload:{ port:{ cellID: 2 ,portNum: 1 }, treeIDs:[3,1,0] } },
-      { op:'rtAdd',  payload:{ port:{ cellID: 3 ,portNum: 2 }, treeIDs:[2    ] } },
-      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 2 }, treeIDs:[2    ] } },
-      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[2    ] } },    
-    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:2 },{ cellID:2 ,portNum:2 }] } // no change to routing tables 
-  ]
-);
+to hide the gray links:
+  $('.l_').hide(); 
 </pre>
 </body>
 <script> // keep everything in one file for now so people can run by just cutting&pasting src code
@@ -194,11 +37,6 @@ var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
 </script>
 <script>
 // ============================================================= sample implementation to test API
-
-/*   stackoverflow   get the indexes of array elements that satisfy cndn
- var data = [{prop1:"abc",prop2:"qwe"},{prop1:"xyz",prop2:"qwrq"},{prop1:"abc",prop2:"yutu"}];
- data.map((_,i)=> i).filter((e)=> data[e].prop1=='abc');
-*/
 const socket= { send:(s,__,buff=JSON.parse(s))=> buff.map((d)=> console.log(d)) } // mock socket.send
 const range=(n)=> [...Array(n).keys()];
 const array2hash=(a,__,o={})=>{ a.map((d,k)=> o[k]=d); return o; }  // TBD: add to utlity.js
@@ -384,112 +222,8 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
     });
   }
 };
-// ============================================================= tests: model data + stream
-//console.log(typeof tt,typeof tt==undefined)  // undefined, false
-
-const test_thatImplementsTheSmallExampleAbove=(__,nCol=2,nRow=2)=>{
-  bp=blueprint(nCol*nRow,nCol);  
-  cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
-  links={};
-  //buff.send();
-  // 'hand' specified links
-  [[0,1]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); }); 
-  [[1,3]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); });
-  //buff.send();
-  [[3,2],[0,2]].map((n1n2)=>{ link(cells[n1n2[0]],cells[n1n2[1]]); });
-  //buff.send();
-  return nCol*nRow;
-};
-const test_withLargerInput_usingGridLayout=(nCol=5,nRow=4,__,stuff,lkz=[],linearOrder,randomizedOrder)=>{
-  bp=blueprint(nCol*nRow,nCol);
-  cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
-  links={};  
-  // auto generate fabric of links
-  
-//stuff=link;
-  stuff=(c1,c2)=> lkz.push([c1,c2]);
-  $.map(cells,(c1,__,c2=getCellOnRt(c1) )=>{ 
-    if(c2!=undefined){ stuff(c1,c2); }
-  });
-  $.map(cells,(c1,__,c2=getCellBelow(c1))=>{
-    if(c2!=undefined){ stuff(c1,c2); }
-  }); 
-  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)+1)] )=>{
-    if(c2!=undefined){ stuff(c1,c2); } // bot rt   diag
-  });
-  $.map(cells,(c1,c1_k,__,c2=cells[getCellID(col(c1_k)+1,row(c1_k)-1)] )=>{
-    if(c2!=undefined){ stuff(c1,c2); } // top left diag
-  });
-  
-  linearOrder=()=>{
-    lkz.map((d)=> link(d[0],d[1]) );  // w/o randomize
-  };
-  
-  randomizedOrder=()=>{
-    // randomize the link creation order
-   // console.log(lkz.map((d)=> d[0].k+'-'+d[1].k).join('__'));
-    while(lkz.length>0){ 
-      let dd=lkz.splice(Math.floor(Math.random()*lkz.length),1)[0]; // pick random link
-      link(dd[0],dd[1]); 
-    }
-  };
-  
-//linearOrder();
-  randomizedOrder();
-  
-  // buff.send();
-  return nCol*nRow;
-};
-const test_withLargerInput_usingGridLayout_randomLinking=(nCol=5,nRow=4,__,keys,sz,cnt=0,c_k1,c_k2,lkz={})=>{
-  bp=blueprint(nCol*nRow,nCol);
-  cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
-  keys=Object.keys(cells);
-  sz=nCol*nRow;  // keys.length
-  links={};
-  while(cnt<150){
-    cnt++;  // TTTT
-    let i1=Math.floor(sz*Math.random());
-    let i2=Math.floor(sz*Math.random());
-    c_k1=cells[i1];
-    c_k2=cells[i2];
-    if(
-      c_k1.k!=c_k2.k &&
-      (Math.abs(bp[c_k1.k][0]-bp[c_k2.k][0])<3) &&
-      (Math.abs(bp[c_k1.k][1]-bp[c_k2.k][1])<3) &&
-      lkz[[c_k1.k,c_k2.k].join('_')]==undefined &&
-      lkz[[c_k2.k,c_k1.k].join('_')]==undefined
-    ){
-      link(cells[c_k1.k],cells[c_k2.k]);
-      lkz[c_k1.k,c_k2.k]=true;
-    //cnt+=1;  TTTT
-    }
-
-  }
-  return nCol*nRow;
-}
 
 
-//----- from Gregory Oct 01 2018
-/*
-{
-  "messageId": 8, 
-  "op": "cellAdd",
-  "payload": {"row":3, "col":1, "cellName":"8"}, 
-},
-{
-  "messageId": 9, 
-  "op": "linkAdd",
-  "payload": [
-    {"CellPort": {"portNum":"1", "cellName":"4"}}, 
-    {"CellPort": {"portNum":"1", "cellName":"3"}}
-  ], 
-},
-{
-  "messageId": 10,
-  "op": "rtAdd", 
-  "payload": {"tree":{"treeName":"4" }, "CellPort":{"portNum":"1", "cellName":"3" }},
-},
-*/
 const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the format I use
   $.map(foo,(v,__,op=v.op,d=v.payload)=>
     ({
@@ -519,10 +253,7 @@ const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the f
 ;
 
 var sz=0;
-//sz=test_thatImplementsTheSmallExampleAbove(); foo=buff;
-//sz=test_withLargerInput_usingGridLayout(6,5); foo=buff;   // 5,4
-sz=test_withLargerInput_usingGridLayout_randomLinking(5,4); foo=buff; // 5 4
-//foo=test_gregory(foo); sz=10; // uses foo, not buff
+foo=test_gregory(foo); sz=10; // uses foo, not buff
 tiles=setup(sz);
 //$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
 let cnt= -1;
@@ -530,6 +261,7 @@ let pid=setInterval(
   ()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },
   200
 ); 
+
 const behavior=()=>{
   $(document).on('click','circle',(d,__,id)=>{  // jquery ev delegation 
     id= $(d.target).attr('class').split('_')[1]; 

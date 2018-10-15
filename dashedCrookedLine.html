@@ -22,7 +22,13 @@ jakearchibald.com/2013/animated-line-drawing-svg/
   1940s care, cities and traffic footage
   Metal Forming Process - What's Actually Happening
   
-  
+make a duplicate
+http://frontendbabel.info/articles/svg-grouping-and-reusing-elements/  might help
+
+
+$('body').append($('svg').html($('svg').html()))  fkd
+
+
 </pre>
 <svg id="svgB" viewBox="0 0 190 100"></svg><br/>
 
@@ -80,11 +86,11 @@ path.style.strokeDashoffset = length/5;
 
 // Trigger a layout so styles are calculated & the browser picks up the starting position before animating
 
-var cnt=(length/5);
+var cnt=0;
 pid2=setInterval(()=>{
     path.getBoundingClientRect();
     path.style.transition = path.style.WebkitTransition ='stroke-dashoffset 2s ease-in-out';
-    path.style.strokeDashoffset = cnt*= -1;
+    path.style.strokeDashoffset = cnt+=(length/5);
   }
   ,1000
 );

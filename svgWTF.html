@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ svg { margin:10px;  border:10px solid lime; padding:0px;  }
+</style>
+<body>
+<hr/>
+nested svgs, and content<br/>
+<svg id="svgP">
+ <svg id="svgC" width="400" height="100">
+   <path d="M10 10L550 10L50 50L10 50L10 10" fill="none" stroke="red" stroke-width="4"></path>
+ </svg>
+</svg><br/>
+<hr/>
+not content<br/>
+<svg id="svgA" ></svg><br/>
+<hr/>
+<svg id="svgB" viewBox="0 0 100 100">
+svg.width=document.body.clientWidth
+</svg><br/>
+<hr/>
+<script type='text/javascript' src='https://code.jquery.com/jquery-1.12.1.js'></script>
+<script> 
+const range=(n)=> [...Array(n).keys()];
+var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
+var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
+var append=($p,$c)=>{ $p.append($c); return $c; };
+
+var SegmentedPoly=(p,pts,wid)=>
+  append(p,$(SVGnode('path')))
+    .attr({ 
+      d:'M'+$.map(pts,(pt)=> pt.join(' ')).join('L'), 
+      fill:"none", stroke:'green', 'stroke-width':wid
+    })
+;
+var zr=0, sz=100;
+const rect=SegmentedPoly($("#svgB"),[[zr,zr],[sz,zr],[sz,sz],[zr,sz],[zr,zr]],3);
+</script>
+<pre>
+<h3>wtf:</h3> 
+ ---
+   
+<hr/>
+content does not change svg wid&ht;  this includes nested svg's
+content is clipped by the svg wid&ht
+the chrome debugger reports the wid&ht of the content's bbox
+
+$('body').css('margin',0)  // 8 is the default
+document.body.clientWidth = window.width - 2*body.margin
+
+css svg wid&ht cannot be overridden by jQuery !!
+
+jquery setting width will clip the svg, but not change its size
+
+$('#svgB').attr('width') should be the width of the content, but is content+padding+border BBBB
+
+when svg is not given a specified width
+  if no viewBox
+    gets a default size of 300x150 + 2*(padding+margin)
+  if viewBox or you set a viewBox w/ $('#svgA')[0].setAttribute('viewBox', '0 0 800 400')
+    svg.width = document.body.clientWidth
+      since margin is not part of svg.width, the svg is too large, and the rt side of the svg gets clipped
+    
+jquery has problems with viewBox:
+   
+	$('#svgA').attr('viewBox','0 0 90 90') does not work, 
+	even though $('#svgA').attr('viewBox') returns '0 0 90 90'
+
+ you must use
+	$('#svgA')[0].setAttribute('viewBox')
+	$('#svgA')[0].getAttribute('viewBox','0 0 90 90')
+
+$obj.attr('width') is null until a width attr has been specified, even though the obj has a width
+
+content is clipped by the border and margin, not by padding     
+</pre>
+</body>
