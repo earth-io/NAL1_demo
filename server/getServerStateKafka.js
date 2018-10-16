@@ -53,9 +53,9 @@ consumer
 	.on('data', function(data) {
 		// Output the actual message contents
 		var obj = JSON.parse(data.value.toString());
-		console.log(data.value.toString());
+//		console.log(data.value.toString());
 		payload = obj.payload
-		console.log( data.value.toString())
+//		console.log( data.value.toString())
 		//console.log( obj.header);
 		if (payload.header.function == 'process_hello_msg') {
 		//   console.log( obj.header);
@@ -166,8 +166,7 @@ function process_hello_msg( record, blueprint) {
     sender_cell_uuid = record['body']['msg']['payload']['cell_id']['uuid']['uuid']
     sender_cell_port_no = record['body']['msg']['payload']['port_no']
     sender_cell_port_full_name = sender_cell_name + '#' + sender_cell_port_no
-//    print( "sender_cell_name :", sender_cell_name)
-//    #    print( "sender_cell_uuid :", sender_cell_uuid)
+//    print( "sender_cell_uuid :", sender_cell_uuid)
     blueprint[receiver_cell_port_full_name] = sender_cell_port_full_name
     blueprint[sender_cell_port_full_name] = receiver_cell_port_full_name
     
