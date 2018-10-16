@@ -157,9 +157,6 @@ def process_discoverd_msg(record, blueprint):
     receiver_cell_port_no = receiver_cell_port_full_name.split('#')[1]
     tree_uuid = record['body']['msg']['payload']['tree_id']['uuid']['uuid']
     tree_name = record['body']['msg']['payload']['tree_id']['name']
-    if tree_name == 'C:2':
-        print("DISCOVERD", "tree_name : ", tree_name, " receiver_cell_port_full_name : ", receiver_cell_port_full_name,
-              " sender_cell_port_full_name : ", sender_cell_port_full_name)
 
     if receiver_cell_name > sender_cell_name:
         phisicalLink = sender_cell_port_full_name + ':' + receiver_cell_port_full_name
@@ -215,10 +212,10 @@ with open(filename) as fp:
     line = fp.readline()
     cnt = 1
     while line:
-        print("Line {}: {}".format(cnt, line.strip()))
+#        print("Line {}: {}".format(cnt, line.strip()))
         line = fp.readline()
         cnt += 1
-        print( line)
+#        print( line)
         record = {}
         try:
             record = json.loads( line)
