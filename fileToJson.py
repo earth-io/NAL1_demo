@@ -5,8 +5,6 @@ import hashlib
 import json
 import pickle
 import operator
-from bson import ObjectId
-from bson.son import SON
 
 def uiCellName( cellName):
     return cellName[2:]
