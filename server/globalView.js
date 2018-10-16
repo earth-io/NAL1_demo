@@ -113,7 +113,7 @@ GlobalView = class  {
         var cellPortB = { CellPort:{ cellName:uiCellName(cellB), portNum:portB}}
         var cellPortA = { CellPort:{ cellName:uiCellName(cellA), portNum:portA}}
 
-        var payload = { cellPortB, tree:{  treeName : uiCellName( treeId)}}
+        var payload = { CellPort:{ cellName:uiCellName(cellB), portNum:portB}, tree:{  treeName : uiCellName( treeId)}}
         var json_data = { op:"rtAdd", payload:payload}
 //        this.opHistory.append("['rtAdd', ('{}', {}), {}]".format(uiCellName( cellB), portB, uiCellName( treeId)))
         this.generateMessage( json_data)
