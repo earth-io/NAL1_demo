@@ -17,7 +17,6 @@ var server = http.createServer(function(req, res) {
     });
 });
 
-
 var redis = require("redis"),
     client = redis.createClient({host:'172.16.1.102', port:6379, db:0})
 
@@ -26,7 +25,8 @@ client.on("error", function (err) {
 });
 
 kafkaServer = '172.16.1.102'
-let topic = 'multicell-ui-raw';
+let topicx = 'multicell-ui-raw';
+let topic = 'multicell-ui-raw-debug-1';
 //let topic = 'multicell-raw';
 //let topic = 'CellAgent';
 let brokers = kafkaServer + ':9092';
@@ -53,13 +53,22 @@ consumer
 	.on('data', function(data) {
 		// Output the actual message contents
 		var obj = JSON.parse(data.value.toString());
-		console.log(data.value.toString());
+//		console.log(data.value.toString());
 		payload = obj.payload
-		console.log( data.value.toString())
+//		console.log( data.value.toString())
 		//console.log( obj.header);
-		if (payload.header.function == 'process_hello_msg') {
+        if ( payload["header"]["function"] == 'MAIN' 
+                && payload["body"]["schema_version"] == '0.1') {
+            blueprint = process_init_topology(payload, blueprint)
+		}
+        else if ( payload["header"]["function"] == 'initialize' 
+                	&& ( payload["header"]["format"] == 'border_cell_start' || payload["header"]["format"] == 'interior_cell_start')) {
+            console.log( 'initialize' )
+            cellLocation[payload["body"]["cell_number"]] = payload["body"]["location"]
+		}
+		else if (payload.header.function == 'process_hello_msg') {
 		//   console.log( obj.header);
-		    process_hello_msg( payload, blueprint); 
+            blueprint = process_hello_msg(payload, cellLocation, blueprint)
 		} else if ( payload.header.function == 'process_discover_msg') {
 				// console.log( record["header"]["function"])
 		    process_discover_msg(payload, blueprint)
@@ -70,6 +79,7 @@ consumer
 	});
   
 blueprint={}
+cellLocation = {}
 
 let myCounter = 0;
 const io = socketIo(server);
@@ -111,7 +121,14 @@ server.listen( portId, function(){
     console.log('listening on *:' + portId);
 });
   
-  
+function process_init_topology(record, blueprint){
+    nCells = record['body']['ncells']
+    rows = record['body']['rows'] ? record['body']['rows'] : 2
+    cols = record['body']['cols'] ? record['body']['cols'] : 5
+    gv.initGeometry(nCells, rows, cols)
+    return blueprint
+}
+ 
 function process_discover_msg(record, blueprint) {
 //    print( process_discover_msg, record)
     my_cell_name = record['body']['cell_id']['name']
@@ -148,14 +165,10 @@ function process_discoverd_msg(record, blueprint) {
     receiver_cell_port_no = receiver_cell_port_full_name.split('#')[1]
     tree_uuid = record['body']['msg']['payload']['tree_id']['uuid']['uuid']
     tree_name = record['body']['msg']['payload']['tree_id']['name']
-    if ( tree_name == 'C:2') {
-        console.log("DISCOVERD", "tree_name : ", tree_name, " receiver_cell_port_full_name : ", receiver_cell_port_full_name,
-              " sender_cell_port_full_name : ", sender_cell_port_full_name)
-    }    
     gv.discoverD( sender_cell_name, sender_cell_port_no, receiver_cell_name, receiver_cell_port_no, tree_name)
 }
 
-function process_hello_msg( record, blueprint) {
+function process_hello_msg( record, cellLocation, blueprint) {
 //   console.log( record);
     
     receiver_cell_name = record['body']['cell_id']['name']
@@ -171,8 +184,8 @@ function process_hello_msg( record, blueprint) {
     blueprint[receiver_cell_port_full_name] = sender_cell_port_full_name
     blueprint[sender_cell_port_full_name] = receiver_cell_port_full_name
     
-    gv.addCell(receiver_cell_name)
-    gv.addCell(sender_cell_name)
+    gv.addCell(receiver_cell_name, cellLocation)
+    gv.addCell(sender_cell_name, cellLocation)
     gv.helloLink(receiver_cell_name, receiver_cell_port_no, sender_cell_name, sender_cell_port_no)
     return blueprint
 }

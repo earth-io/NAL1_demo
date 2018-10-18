@@ -1,5 +1,9 @@
 GlobalView = class  {
     constructor() {
+        this.nCells = 0
+        this.rows = 0
+        this.cols = 0
+
         this.cellPorts = {}
         this.cellPortLinks = {}
         this.opHistory = []
@@ -22,23 +26,34 @@ GlobalView = class  {
 
     }
 
-    addCell( newCell) {
-        console.log( "newCell " + newCell);
+    initGeometry(nCells, rows, cols){
+        this.nCells = nCells
+        this.rows = rows
+        this.cols = cols
+        this.generateMessage( { op : "initTopology", payload : { num_cells : nCells, rows : rows, cols:cols}})
+    }
+	
+    addCell( newCell, location) {
+        console.log( "addCell newCell start" + newCell);
         this.cellPorts[newCell] = {}
         var pos = position( newCell)
-        var payload = { cellName : uiCellName( newCell),
-                        row : pos.x,
-                        col : pos.y
+        var cellId = uiCellName( newCell)
+        console.log( 'addCell cellId ' + cellId)
+        console.log( 'addCell location ' + location)
+        var payload = { cellName : cellId,
+                        row : location[cellId][0],
+                        col : location[cellId][1]
                    }
         var json_data = { op : "cellAdd",
                       payload : payload
                     }
         this.generateMessage( json_data)
+        console.log("addCell done")
     }
 
     helloLink(cellA, portA, cellB, portB) {
-        this.addCell(cellA)
-        this.addCell(cellB)
+//        this.addCell(cellA)
+//        this.addCell(cellB)
         var ports = this.cellPorts[cellA]
 
         var cellPortLabelA = cellA + "#" + portA
