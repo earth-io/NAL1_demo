@@ -1,3 +1,5 @@
+const uiCellName=(cellName)=> cellName.substring( 2, 10);
+const position  =(cellName)=> ({ x:uiCellName(cellName)%5, y:Math.trunc(uiCellName(cellName)/5) });
 GlobalView = class  {
     constructor() {
         this.nCells = 0
@@ -14,6 +16,26 @@ GlobalView = class  {
 //        this.linkTrees = {}
     }
     
+  discover(cellA, portA, cellB, portB, treeId, hops) {
+  //if ( this.cellPorts==undefined ){ console.log('undefined this.cellPorts)'); }; stupid test zzz
+    var cellPortLabelA = [cellA,portA].join('#');
+    var cellPortLabelB = [cellB,portB].join('#');
+    if(this.cellPorts==undefined){ console.log( 'undefined this.cellPorts)'); }; // added oct 15 by jgs
+    var portsB = this.cellPorts[cellB];
+    if(portsB[cellPortLabelB]==undefined){ portsB[cellPortLabelB]={}; }    
+    if(portsB[cellPortLabelB][cellPortLabelA]==undefined){ portsB[cellPortLabelB][cellPortLabelA]={}; } 
+      
+    portsB[cellPortLabelB][cellPortLabelA][treeId]={ "hops":hops};
+  };
+  discoverD( cellA, portA, cellB, portB, treeId) {
+    var cellPortLabelA = [cellA,portA].join('#');
+    var cellPortLabelB = [cellB,portB].join('#');
+    if(this.cellPorts==undefined){ console.log( 'undefined this.cellPorts)'); };
+    var portsB = this.cellPorts[cellB]
+    if(portsB[cellPortLabelB]==undefined){ portsB[cellPortLabelB]={}; }    
+    if(portsB[cellPortLabelB][cellPortLabelA]==undefined){ portsB[cellPortLabelB][cellPortLabelA]={}; }
+  }        
+  
 	getMessages() {
     	return this.opHistory;
     }
@@ -35,6 +57,7 @@ GlobalView = class  {
 	
     addCell( newCell, location) {
         console.log( "addCell newCell start" + newCell);
+        console.log( location)
         this.cellPorts[newCell] = {}
         var pos = position( newCell)
         var cellId = uiCellName( newCell)
@@ -148,16 +171,5 @@ GlobalView = class  {
           for ( const message of this.opHistory) { console.log( message);}
      }
 }
-
-
-function uiCellName( cellName) {
-    return cellName.substring( 2, 10)
-}
-
-function position( cellName) {
-    x = ( uiCellName( cellName)) % 5;
-    y = Math.trunc( uiCellName( cellName) / 5);
-    return {x:x, y:y}
-}  
 
 module.exports.GlobalView = GlobalView;  

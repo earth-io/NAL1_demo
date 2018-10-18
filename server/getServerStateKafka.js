@@ -25,7 +25,8 @@ client.on("error", function (err) {
 });
 
 kafkaServer = '172.16.1.102'
-let topicx = 'multicell-ui-raw';
+//let topicx = 'multicell-ui-raw';
+//let topic = 'multicell-ui-raw-small1';
 let topic = 'multicell-ui-raw-debug-1';
 //let topic = 'multicell-raw';
 //let topic = 'CellAgent';
@@ -179,8 +180,7 @@ function process_hello_msg( record, cellLocation, blueprint) {
     sender_cell_uuid = record['body']['msg']['payload']['cell_id']['uuid']['uuid']
     sender_cell_port_no = record['body']['msg']['payload']['port_no']
     sender_cell_port_full_name = sender_cell_name + '#' + sender_cell_port_no
-//    print( "sender_cell_name :", sender_cell_name)
-//    #    print( "sender_cell_uuid :", sender_cell_uuid)
+//    print( "sender_cell_uuid :", sender_cell_uuid)
     blueprint[receiver_cell_port_full_name] = sender_cell_port_full_name
     blueprint[sender_cell_port_full_name] = receiver_cell_port_full_name
     
