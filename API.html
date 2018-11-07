@@ -386,7 +386,6 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
 };
 // ============================================================= tests: model data + stream
 //console.log(typeof tt,typeof tt==undefined)  // undefined, false
-
 const test_thatImplementsTheSmallExampleAbove=(__,nCol=2,nRow=2)=>{
   bp=blueprint(nCol*nRow,nCol);  
   cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
@@ -467,8 +466,6 @@ const test_withLargerInput_usingGridLayout_randomLinking=(nCol=5,nRow=4,__,keys,
   }
   return nCol*nRow;
 }
-
-
 //----- from Gregory Oct 01 2018
 /*
 {
@@ -493,6 +490,17 @@ const test_withLargerInput_usingGridLayout_randomLinking=(nCol=5,nRow=4,__,keys,
 const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the format I use
   $.map(foo,(v,__,op=v.op,d=v.payload)=>
     ({
+    /*
+      version:()=>{},
+      initTopology:()=>({
+        op:'initTopology',
+        payload:[
+          nCol=d.cols,
+          nRow=d.rows,
+        ] 
+        sz=nCol*nRow;
+      },
+      */
       cellAdd:()=>{ 
         bp[d.cellName]=[d.col,d.row]; // assumes msgs come 'in order'
         return ({ 
@@ -517,19 +525,23 @@ const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the f
     })[op]()
   );
 ;
-
+// ========== pick an input to run ====================
 var sz=0;
 //sz=test_thatImplementsTheSmallExampleAbove(); foo=buff;
 //sz=test_withLargerInput_usingGridLayout(6,5); foo=buff;   // 5,4
-sz=test_withLargerInput_usingGridLayout_randomLinking(5,4); foo=buff; // 5 4
-//foo=test_gregory(foo); sz=10; // uses foo, not buff
-tiles=setup(sz);
-//$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
-let cnt= -1;
-let pid=setInterval(
-  ()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },
-  200
-); 
+//sz=test_withLargerInput_usingGridLayout_randomLinking(5,4); foo=buff; // 5 4
+foo=test_gregory(foo); sz=10; // uses foo, not buff
+// ========== pick an input to run - fini =============
+let pid;
+let runMe=()=>{
+  tiles=setup(sz);
+	//$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
+	let cnt= -1;
+	pid=setInterval(
+		()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },
+		200
+	); 
+};
 const behavior=()=>{
   $(document).on('click','circle',(d,__,id)=>{  // jquery ev delegation 
     id= $(d.target).attr('class').split('_')[1]; 
