@@ -1,4 +1,6 @@
 var foo=[
+{"op":"version","payload":1,"messageId":0},
+{"op":"initTopology","payload":{"num_cells":10,"rows":2,"cols":5},"messageId":1},
 {"messageId": 0, "payload": {"row": 0, "col": 0, "cellName": "0"}, "op": "cellAdd"},
 {"messageId": 1, "payload": {"row": 1, "col": 0, "cellName": "1"}, "op": "cellAdd"},
 {"messageId": 2, "payload": {"row": 1, "col": 1, "cellName": "6"}, "op": "cellAdd"},

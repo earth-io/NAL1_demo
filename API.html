@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
-<script  src='./lib/jquery-1.12.1.js'></script>
-<script  src='gregoryDataOct012018.js'></script>
+<script src='./lib/jquery-1.12.1.js'></script>
+script src="/socket.io/socket.io.js"
+ script src='./experiment/gregoryDataNov052018.js'> /script>
+<script src='./experiment/gregoryDataOct012018.js'></script>
 <body>
+books.google.com/books?id=I4Q5AAAAMAAJ&pg=PA81&source=gbs_toc_r&cad=4#v=onepage&q&f=false
 <div id='display'></div>
-<h5>John Slater Sept 25-Oct 03 2018</h5>
+<h5>John Slater Sept 25-Oct 03 2018 + Greogry Nov 06 2018</h5>
 <pre>
+<hr/>
+messages:
+<ul id="messages"></ul>
+<hr/>
 
 TBD: 
-make a duplicate
-http://frontendbabel.info/articles/svg-grouping-and-reusing-elements/  might help
-  
-
-http://tavmjong.free.fr/blog/?p=1257  svg and inkscape
-
 https://github.com/earth-io/NAL1_demo/blob/modules/server/getServerStateKafka.html
 https://github.com/earth-io/NAL1_demo/blob/modules/server/getServerStateKafka.js
 https://github.com/earth-io/NAL1_demo/blob/modules/server/globalView.js
@@ -38,7 +39,13 @@ Calling
 produces a 5 column x 4 row array of cells, the data is put in the global variable 'vm'
 
 TBD ---
-Team/John/demos/arrows/dashedCrookedLine.html
+use row,col attrs to determine position on display
+
+make a duplicate
+http://frontendbabel.info/articles/svg-grouping-and-reusing-elements/  might help
+  
+
+http://tavmjong.free.fr/blog/?p=1257  svg and inkscape
 
 
 --- Routing table ---
@@ -172,6 +179,7 @@ socket.send(JSON.stringify( // array of atomic information
 <script> // keep everything in one file for now so people can run by just cutting&pasting src code
 //----- from common/util.js 
 var append=($p,$c)=>{ $p.append($c); return $c; };
+var log=console.log;
 //----- from client/htmlUtil.js  
 var svgNS="http://www.w3.org/2000/svg", DIV='<div>';
 var SVGnode= (tag)=> document.createElementNS(svgNS,tag);
@@ -193,18 +201,6 @@ const quadraticArc=(p,x1,y1,x2,y2,clr,wid,__,xm=(x1+x2)/2,ym=(y1+y2)/2,dx=x2-x1,
 var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
 </script>
 <script>
-// ============================================================= sample implementation to test API
-
-/*   stackoverflow   get the indexes of array elements that satisfy cndn
- var data = [{prop1:"abc",prop2:"qwe"},{prop1:"xyz",prop2:"qwrq"},{prop1:"abc",prop2:"yutu"}];
- data.map((_,i)=> i).filter((e)=> data[e].prop1=='abc');
-*/
-const socket= { send:(s,__,buff=JSON.parse(s))=> buff.map((d)=> console.log(d)) } // mock socket.send
-const range=(n)=> [...Array(n).keys()];
-const array2hash=(a,__,o={})=>{ a.map((d,k)=> o[k]=d); return o; }  // TBD: add to utlity.js
-var buff=[]; 
-//buff.send=()=>{ socket.send(JSON.stringify(buff)); buff.length=0; };
-buff.send=()=>{  };
 // ============================================================= view model
 let cells={},links={},bp={},bpr;
 const blueprint=(nItems,nCol,__,bp={})=>{ 
@@ -261,7 +257,7 @@ const Link=(node1,portNum1, node2,portNum2,__,self,idArray,id)=>{
   id=idArray.join('_');
   self={ id:id, n1:idArray[0],p1:idArray[1],n2:idArray[2],p2:idArray[3] };
   links[id]=self;
-//console.log('linkAdd',self.n1 ,self.p1, self.n2 ,self.p2 );
+//log('linkAdd',self.n1 ,self.p1, self.n2 ,self.p2 );
   buff.push({ op:'linkAdd',  payload:[{ cellID:self.n1 ,portNum:self.p1 },{ cellID:self.n2 ,portNum:self.p2 }] })
 
   node1.ports[portNum1]=[node2,portNum2];   // PPPP
@@ -276,14 +272,14 @@ const link_using_misc_port=(node1,node2,__,pAvail1,p2Avail,p1,p2)=>{
   p2Avail=node2.ports.map((_,i)=> i).filter((ii)=> node2.ports[ii]==undefined);
   p1=p1Avail[Math.floor(p1Avail.length*Math.random())];
   p2=p2Avail[Math.floor(p2Avail.length*Math.random())];
-//console.log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
+//log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
   Link(node1,p1, node2,p2);
 };
 const link_using_first_available_port_AlansMethod=(node1,node2,__,p1,p2)=>{
   if(node1==undefined || node2==undefined){ return; }
   p1=node1.ports.map((_,i)=> i).filter((ii)=> node1.ports[ii]==undefined)[0];
   p2=node2.ports.map((_,i)=> i).filter((ii)=> node2.ports[ii]==undefined)[0];
-//console.log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
+//log('----linking----',node1.k+'_'+p1,node2.k+'_'+p2);
   Link(node1,p1, node2,p2);
 };
 //const link=link_using_first_available_port_AlansMethod; // Alan picks the first available port, so we do too
@@ -301,7 +297,7 @@ const setup=(n,__,std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:
 //range(n).map((i,__,$g=std_g())=>{ // fkds up,  $g is [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
   range(n).map((i,__,$g,$gl,$gc)=>{
     $g=std_g()
-  //console.log($g);  // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  wtf
+  //log($g);  // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  wtf
     $gl=append($g,$(SVGnode('svg')).attr({ class:'gl' }));  // links and routing table
     append($gl,$(SVGnode('rect'))
       .attr({ class:'bkgrnd  bkgrnd_'+i, width:"100%", height:"100%", fill:"blue", opacity:0.1 }));
@@ -310,13 +306,20 @@ const setup=(n,__,std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:
   })
 ;
 const doOp=(op,d,__,cellName,k,row,col)=>{
-  if(op=='cellAdd'){ 
+  if(op=='version'){ // {"op":"version","payload":1,"messageId":0},
+    version=d[0];
+  }
+  if(op=='initTopology'){ // {"op":"initTopology","payload":{"num_cells":10,"rows":2,"cols":5},"messageId":1},
+
+  }
+  if(op=='cellAdd'){  // {"op":"cellAdd","payload":{"cellName":"6","row":1,"col":1},"messageId":2},
     cellName=d[0]; col=d[1]; row=d[2];
     k=cellName;
     vm.cells[k]={ k:k, col:col, row:row }; // { k:d.cellName, col:d.col, row:d.row };
     vm.bp[k]=[col,row];
     tiles.map((t)=>
-      append(t.$gc,$(SVGnode('circle')).attr({ class:'c_'+k, cx:10+vm.bp[k][0]*20,cy:10+vm.bp[k][1]*20,r:5,fill:'lime'}))
+      append(t.$gc,$(SVGnode('circle'))
+        .attr({ class:'c_'+k, cx:10+vm.bp[k][0]*20,cy:10+vm.bp[k][1]*20,r:5,fill:'lime'}))
     );
   }
   if(op=='linkAdd'){  
@@ -324,7 +327,7 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
     if(vm.links[d[1].cellID]==undefined){ vm.links[d[1].cellID]={}; }
     vm.links[d[0].cellID][d[0].portNum]=[d[1].cellID,d[1].portNum];
     vm.links[d[1].cellID][d[1].portNum]=[d[0].cellID,d[0].portNum];
-    $('.l_').attr({ stroke:'silver',  'stroke-width':3 })
+    $('.l_').attr({ stroke:'silver',  'stroke-width':3 });
     tiles.map((t)=>{
       // developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths
     //line(t.$gl, 
@@ -346,8 +349,10 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
       tiles.map((t,k)=>{  
         if(rootID==k){   // zzzzzzz kludge
           $('.bkgrnd_'+k).attr({ fill:'red' }); 
-          append(t.$gc,$(SVGnode('circle')).attr({class:'rtco rtco_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
-          append(t.$gc,$(SVGnode('circle')).attr({class:'rtci rtci_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:3,fill:'yellow'}));
+          append(t.$gc,$(SVGnode('circle'))
+            .attr({class:'rtco rtco_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
+          append(t.$gc,$(SVGnode('circle'))
+            .attr({class:'rtci rtci_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:3,fill:'yellow'}));
           if(k2!=undefined){
           //line(t.$gl,
             quadraticArc(t.$gl,
@@ -361,32 +366,72 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
              10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'black',4).attr({ class:'b_ rt_'+k1 }); 
              
             const path=arc3[0];
-						path.style.transition = path.style.WebkitTransition ='none';
-						var length = 30; // path.getTotalLength();
-						
-						path.style.strokeDasharray = 6 + ' ' + 3;
-						path.style.strokeDashoffset = 9;
-						// Trigger a layout so styles are calculated & the browser picks up the starting position before animating
-						var cnt=0;
-						pid2=setInterval(()=>{
-								path.getBoundingClientRect();
-								path.style.transition = path.style.WebkitTransition ='stroke-dashoffset 2s ease-in-out';
-								path.style.strokeDashoffset = cnt+=(length/5);
-							}
-							,1000
-						);
+            path.style.transition = path.style.WebkitTransition ='none';
+            var length = 30; // path.getTotalLength();
+            
+            path.style.strokeDasharray = 6 + ' ' + 3;
+            path.style.strokeDashoffset = 9;
+            // Trigger a layout so 
+            //  styles are calculated & 
+            //  the browser picks up the starting position before animating
+            var cnt=0;
+            pid2=setInterval(()=>{
+                path.getBoundingClientRect();
+                path.style.transition = path.style.WebkitTransition ='stroke-dashoffset 2s ease-in-out';
+                path.style.strokeDashoffset = cnt+=(length/5);
+              }
+              ,1000
+            );
           }
           else{
-            console.log(d.port.cellID,d.port.portNum,' does not have a link to another cell')
+            log(d.port.cellID,d.port.portNum,' does not have a link to another cell')
           }
         }
       });
     });
   }
 };
-// ============================================================= tests: model data + stream
-//console.log(typeof tt,typeof tt==undefined)  // undefined, false
-const test_thatImplementsTheSmallExampleAbove=(__,nCol=2,nRow=2)=>{
+// ============================================================= 
+const behavior=()=>{
+  $(document).on('click','circle',(d,__,id)=>{  // jquery ev delegation 
+    id= $(d.target).attr('class').split('_')[1]; 
+    log('request kill',id);
+    delete vm.cells[id];
+    // the server sends a msg to kill cell.id 
+    // and we invoke a .delete methods 
+    // Cells.delete(id)
+    $('.c_'   +id).remove();
+    $('.rtci_'+id).remove();
+    $('.rtco_'+id).remove();
+    $('.kl_'  +id).remove();
+    $('.rt_'  +id).remove();
+  });
+  $(document).on('click','.l_',(d,__,kls,id)=>{
+    kls=$(d.target).attr('class');
+    log('request kill link',$('.'+kls.split(' ')[3]),$('.'+kls.split(' ')[4]));
+    $(d.target).remove(); 
+  });
+  $(document).on('click','.bkgrnd',(ev,__,tile)=>{
+    tile=$(ev.target).parent().parent();
+  //tile.hide();
+    if(tile.hasClass('zoomed')){
+      tile.removeClass('zoomed');
+      tile.attr({ width:150, height:100 });
+      tile[0].setAttribute('viewBox','0 0 150 100')
+    }
+    else{
+      tile.addClass('zoomed');
+      tile.attr({ width:450, height:300 });
+      tile[0].setAttribute('viewBox','0 0 150 100')
+    }
+    // $('#svgA')[0].setAttribute('viewBox')
+    // $('#svgA')[0].getAttribute('viewBox','0 0 90 90')
+  });
+};
+// =========================================================== tests: model data + stream
+//log(typeof tt,typeof tt==undefined)  // undefined, false
+const test_thatImplementsTheSmallExampleAbove=
+(__,nCol=2,nRow=2)=>{
   bp=blueprint(nCol*nRow,nCol);  
   cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
   links={};
@@ -399,7 +444,8 @@ const test_thatImplementsTheSmallExampleAbove=(__,nCol=2,nRow=2)=>{
   //buff.send();
   return nCol*nRow;
 };
-const test_withLargerInput_usingGridLayout=(nCol=5,nRow=4,__,stuff,lkz=[],linearOrder,randomizedOrder)=>{
+const test_withLargerInput_usingGridLayout=
+(nCol=5,nRow=4,__,stuff,lkz=[],linearOrder,randomizedOrder)=>{
   bp=blueprint(nCol*nRow,nCol);
   cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
   links={};  
@@ -426,7 +472,7 @@ const test_withLargerInput_usingGridLayout=(nCol=5,nRow=4,__,stuff,lkz=[],linear
   
   randomizedOrder=()=>{
     // randomize the link creation order
-   // console.log(lkz.map((d)=> d[0].k+'-'+d[1].k).join('__'));
+   // log(lkz.map((d)=> d[0].k+'-'+d[1].k).join('__'));
     while(lkz.length>0){ 
       let dd=lkz.splice(Math.floor(Math.random()*lkz.length),1)[0]; // pick random link
       link(dd[0],dd[1]); 
@@ -439,9 +485,11 @@ const test_withLargerInput_usingGridLayout=(nCol=5,nRow=4,__,stuff,lkz=[],linear
   // buff.send();
   return nCol*nRow;
 };
-const test_withLargerInput_usingGridLayout_randomLinking=(nCol=5,nRow=4,__,keys,sz,cnt=0,c_k1,c_k2,lkz={})=>{
+const test_withLargerInput_usingGridLayout_randomLinking=
+(nCol=5,nRow=4,__,keys,sz,cnt=0,c_k1,c_k2,lkz={})=>{
   bp=blueprint(nCol*nRow,nCol);
-  cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
+  cells={}; 
+  $.map(bp,(d,i)=> cells[i]=Cell(i));
   keys=Object.keys(cells);
   sz=nCol*nRow;  // keys.length
   links={};
@@ -465,9 +513,20 @@ const test_withLargerInput_usingGridLayout_randomLinking=(nCol=5,nRow=4,__,keys,
 
   }
   return nCol*nRow;
-}
-//----- from Gregory Oct 01 2018
+};
+//----- from Gregory Nov 05 2018
 /*
+
+{
+  "messageId":0
+  "op":"version",
+  "payload":1
+},
+{
+  "messageId":1,
+  "op":"initTopology",
+  "payload":{"num_cells":10,"rows":2,"cols":5}
+},
 {
   "messageId": 8, 
   "op": "cellAdd",
@@ -484,23 +543,29 @@ const test_withLargerInput_usingGridLayout_randomLinking=(nCol=5,nRow=4,__,keys,
 {
   "messageId": 10,
   "op": "rtAdd", 
-  "payload": {"tree":{"treeName":"4" }, "CellPort":{"portNum":"1", "cellName":"3" }},
+  "payload": {
+    "tree":{"treeName":"4" }, 
+     "CellPort":{"portNum":"1", "cellName":"3" }
+  },
 },
 */
-const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the format I use
-  $.map(foo,(v,__,op=v.op,d=v.payload)=>
+const test_gregory=(foo,__,sz)=>{ // reformat Gregory's stuff to the format I use
+  buff=$.map(foo,(v,__,op=v.op,d=v.payload)=>
     ({
-    /*
-      version:()=>{},
-      initTopology:()=>({
-        op:'initTopology',
-        payload:[
-          nCol=d.cols,
-          nRow=d.rows,
-        ] 
-        sz=nCol*nRow;
-      },
-      */
+      version:()=>({
+        op:'version',
+        payload: [ d ],
+      }),
+      initTopology:(__,nCol,nRow)=>{
+        sz=d.cols*d.rows;
+        return {
+          op:'initTopology',
+          payload:[
+            nCol=d.cols,
+            nRow=d.rows,
+          ] 
+        };
+      },      
       cellAdd:()=>{ 
         bp[d.cellName]=[d.col,d.row]; // assumes msgs come 'in order'
         return ({ 
@@ -524,61 +589,99 @@ const test_gregory=(foo,__,nCol=5,nRow=2)=> // reformat Gregory's stuff to the f
       }),
     })[op]()
   );
-;
-// ========== pick an input to run ====================
-var sz=0;
-//sz=test_thatImplementsTheSmallExampleAbove(); foo=buff;
-//sz=test_withLargerInput_usingGridLayout(6,5); foo=buff;   // 5,4
-//sz=test_withLargerInput_usingGridLayout_randomLinking(5,4); foo=buff; // 5 4
-foo=test_gregory(foo); sz=10; // uses foo, not buff
-// ========== pick an input to run - fini =============
+  return sz;
+};
+// ====================================================== sample implementation to test API
+/* 
+stackoverflow.com/questions/48584267/get-the-indexes-of-javascript-array-elements-that-satisfy-condition
+
+data.reduce((arr, e, i) => ((e.prop1 == 'abc') && arr.push(i), arr), [])
+
+ var data = [
+   {prop1:"abc",prop2:"qwe"},
+   {prop1:"xyz",prop2:"qwrq"},
+   {prop1:"abc",prop2:"yutu"}
+ ];
+ data.map((_,i)=> i).filter((e)=> data[e].prop1=='abc');
+*/
+
+// gregory  nov 05 2018
+
+//const socket= { send:(s,__,buff=JSON.parse(s))=> buff.map((d)=> log(d)) } // mock socket.send
+
+//  need to run node
+const collectData = [];
+var mes = '';
+/*
+const socket = io.connect('http://localhost:8060');
+socket.on('fullState',(msg)=>{ 
+  mes = msg;  // this is the whole foo // we will change this later
+  $('#messages'      ).append(msg); 
+  runMe(msg);   // TBD zzzz add a sz or something  
+    });
+socket.on('to_text'         ,(msg)=>{ $('#messages'      ).append(msg); });  // ????
+*/
+//mes=foo;
+
+
+const range=(n)=> [...Array(n).keys()];
+const array2hash=(a,__,o={})=>{ a.map((d,k)=> o[k]=d); return o; }  // TBD: add to utlity.js
+var buff=[]; 
+//buff.send=()=>{ socket.send(JSON.stringify(buff)); buff.length=0; };
+buff.send=()=>{  };
+// ========== pick an input and run it ====================
 let pid;
-let runMe=()=>{
+let runMe=(sz,msgs)=>{
   tiles=setup(sz);
-	//$.map(foo,(o)=> doOp(o.op,o.payload) );  // no animation
-	let cnt= -1;
-	pid=setInterval(
-		()=>{ cnt++; (foo[cnt]==undefined) ?  clearInterval(pid) : doOp(foo[cnt].op,foo[cnt].payload); },
-		200
-	); 
+//$.map(msgs,(o)=> doOp(o.op,o.payload) );  // animates
+  let cnt= -1;
+  pid=setInterval(
+    ()=>{ 
+      cnt++; 
+      (msgs[cnt]==undefined) ?  
+        clearInterval(pid)    // we are done
+      : doOp(msgs[cnt].op,msgs[cnt].payload) // process msg
+      ; 
+    },
+    200
+  ); 
 };
-const behavior=()=>{
-  $(document).on('click','circle',(d,__,id)=>{  // jquery ev delegation 
-    id= $(d.target).attr('class').split('_')[1]; 
-    console.log('request kill',id);
-    delete vm.cells[id];
-    // the server sends a msg to kill cell.id 
-    // and we invoke a .delete methods 
-    // Cells.delete(id)
-    $('.c_'   +id).remove();
-    $('.rtci_'+id).remove();
-    $('.rtco_'+id).remove();
-    $('.kl_'  +id).remove();
-    $('.rt_'  +id).remove();
-  });
-  $(document).on('click','.l_',(d,__,kls,id)=>{
-    kls=$(d.target).attr('class');
-    console.log('request kill link',$('.'+kls.split(' ')[3]),$('.'+kls.split(' ')[4]));
-    $(d.target).remove(); 
-  });
-  $(document).on('click','.bkgrnd',(ev,__,tile)=>{
-		tile=$(ev.target).parent().parent();
-	//tile.hide();
-		if(tile.hasClass('zoomed')){
-			tile.removeClass('zoomed');
-			tile.attr({ width:150, height:100 });
-			tile[0].setAttribute('viewBox','0 0 150 100')
-		}
-		else{
-			tile.addClass('zoomed');
-			tile.attr({ width:450, height:300 });
-			tile[0].setAttribute('viewBox','0 0 150 100')
-		}
-		// $('#svgA')[0].setAttribute('viewBox')
-		// $('#svgA')[0].getAttribute('viewBox','0 0 90 90')
-	});
-};
-$( document ).ready(()=>{
+/*
+// put in util when done
+// stackoverflow.com/questions/14521108/dynamically-load-js-inside-js
+// must run a server to avoid CORS request objection
+$.loadScript=(url,cb)=> $.ajax({ url:url, dataType:'script', success:cb, async:true });
+
+let url;
+url='experiment/gregoryDataNov052018.js';
+url='experiment/gregoryDataOct012018.js';
+
+$(document).ready((__,cb)=>{
   behavior();
+  cb=(x)=>{
+    log(x)
+//    log(foo.length);
+      // ******** uncomment the test you want to run ********
+    //let sz=test_thatImplementsTheSmallExampleAbove(); runMe(sz,buff);  // buff is a global
+    //let sz=test_withLargerInput_usingGridLayout(6,5); runMe(sz,buff);   // 5,4
+    //let sz=test_withLargerInput_usingGridLayout_randomLinking(5,4); runMe(sz,buff); // 5 4
+//    let sz=test_gregory(mes=foo); runMe(sz,buff); 
+  };
+  $.loadScript(url,cb);
 });
+*/
+
+$(document).ready((__,cb)=>{
+  behavior();
+
+    //let sz=test_thatImplementsTheSmallExampleAbove(); runMe(sz,buff);  // buff is a global
+    //let sz=test_withLargerInput_usingGridLayout(6,5); runMe(sz,buff);   // 5,4
+    //let sz=test_withLargerInput_usingGridLayout_randomLinking(5,4); runMe(sz,buff); // 5 4
+    let sz=test_gregory(mes=foo); runMe(sz,buff); 
+
+});
+// get rid of the bold red hiliting after a period of time - ie 5 sec
+let pid2=setInterval(()=> $('.l_').attr({ stroke:'silver',  'stroke-width':3 }),5000);
+
+
 </script>
