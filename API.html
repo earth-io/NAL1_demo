@@ -3,50 +3,40 @@
 <script src='./lib/jquery-1.12.1.js'></script>
 script src="/socket.io/socket.io.js"
  script src='./experiment/gregoryDataNov052018.js'> /script>
-<script src='./experiment/gregoryDataOct012018.js'></script>
+ script src='./experiment/gregoryDataOct012018.js'> /script>
+<script src='./experiment/gregoryData3nodes_20181112_1.js'></script>
 <body>
-books.google.com/books?id=I4Q5AAAAMAAJ&pg=PA81&source=gbs_toc_r&cad=4#v=onepage&q&f=false
 <div id='display'></div>
-<h5>John Slater Sept 25-Oct 03 2018 + Greogry Nov 06 2018</h5>
+John Slater Sept 25-Oct 03 2018 + Greogry Nov 06 2018
 <pre>
-<hr/>
-messages:
-<ul id="messages"></ul>
-<hr/>
-
-TBD: 
-https://github.com/earth-io/NAL1_demo/blob/modules/server/getServerStateKafka.html
-https://github.com/earth-io/NAL1_demo/blob/modules/server/getServerStateKafka.js
-https://github.com/earth-io/NAL1_demo/blob/modules/server/globalView.js
-
-
-UI interaction  (tbd: send msg to server and get cellsDel, linksDel, rtDel msgs back from server)
-  click on a cell to kill it and the attached links
-  click on a link to kill it
-  
 CONSOLE OPS 
   ops to hide links and branches
     $('.l_').hide();
     $('.b_').hide();
     $('.rtco').hide();
     $('circle').attr({ r:3 });
-    
-    
-Calling
+<hr/>
+messages:
+<ul id="messages"></ul>
+<hr/>
+TBD: 
+test_withLargerInput_usingGridLayout etc is broken, make it consistent w/test_gregory, see RRRR
 
+https://github.com/earth-io/NAL1_demo/blob/modules/server/getServerStateKafka.html
+https://github.com/earth-io/NAL1_demo/blob/modules/server/getServerStateKafka.js
+https://github.com/earth-io/NAL1_demo/blob/modules/server/globalView.js
+
+UI send msg to server and get cellsDel, linksDel, rtDel msgs back from server)
+  click on a cell to kill it and the attached links
+  click on a link to kill it
+  
+Calling
   test_withLargerInput_usingGridLayout(5,4) 
   
 produces a 5 column x 4 row array of cells, the data is put in the global variable 'vm'
 
 TBD ---
-use row,col attrs to determine position on display
-
-make a duplicate
-http://frontendbabel.info/articles/svg-grouping-and-reusing-elements/  might help
-  
-
-http://tavmjong.free.fr/blog/?p=1257  svg and inkscape
-
+..
 
 --- Routing table ---
 
@@ -293,15 +283,19 @@ const vm={
   links:{ /* cellID:{portNum:[cellID2,portNum2]},.. */}  
 }; 
 var tiles; // =setup(n)  // used by doOp
-const setup=(n,__,std_g=()=> append($('#display'),$(SVGnode('svg')).attr({width:150, height:100})) )=>
+var nCols;
+const setup=(nCol,nRow,__,
+  std_g=()=> append($('#display'), $(SVGnode('svg')).attr({width:150, height:100}) ) 
+)=>
 //range(n).map((i,__,$g=std_g())=>{ // fkds up,  $g is [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-  range(n).map((i,__,$g,$gl,$gc)=>{
+  range(nCol*nRow).map((i,__,$g,$gl,$gc)=>{
     $g=std_g()
   //log($g);  // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  wtf
     $gl=append($g,$(SVGnode('svg')).attr({ class:'gl' }));  // links and routing table
     append($gl,$(SVGnode('rect'))
       .attr({ class:'bkgrnd  bkgrnd_'+i, width:"100%", height:"100%", fill:"blue", opacity:0.1 }));
     $gc=append($g,$(SVGnode('svg')).attr({ class:'gc' }));  // cells on top of links
+    if((i+1)%nCols==0){ append($('#display'),$('<br/>')); }
     return { $gl:$gl, $gc:$gc, }
   })
 ;
@@ -313,7 +307,7 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
 
   }
   if(op=='cellAdd'){  // {"op":"cellAdd","payload":{"cellName":"6","row":1,"col":1},"messageId":2},
-    cellName=d[0]; col=d[1]; row=d[2];
+    cellName=d[0]; col=d[2]; row=d[1];    // zzzzz kludge trace back why I got this wrong
     k=cellName;
     vm.cells[k]={ k:k, col:col, row:row }; // { k:d.cellName, col:d.col, row:d.row };
     vm.bp[k]=[col,row];
@@ -342,13 +336,16 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
     }); 
   }
   if(op=='rtAdd'){  // d ::= { port:{ cellID: int ,portNum: int }, treeIDs:[int,..] }  // routing info
-    $.map(d.treeIDs,(rootID,__,k1=d.port.cellID,k2)=>{
+    $.map(d.treeIDs,(rootID,__,k1=d.port.cellID,k2,row,col)=>{
       if(vm.links[k1]==undefined || vm.links[k1][d.port.portNum]==undefined){ return; } // we are at the root
       k2=vm.links[k1][d.port.portNum][0];
       $('.bkgrnd'   ).attr({ fill:'blue' });
       tiles.map((t,k)=>{  
-        if(rootID==k){   // zzzzzzz kludge
-          $('.bkgrnd_'+k).attr({ fill:'red' }); 
+        let row=Math.floor(k/nCols)
+        let col=k%nCols;        
+        if(col==bp[rootID][0] && row==bp[rootID][1]){   // zzzzzzz kludge  zzzzz fix this
+        
+        //$('.bkgrnd_'+k).attr({ fill:'red' }); 
           append(t.$gc,$(SVGnode('circle'))
             .attr({class:'rtco rtco_'+k1, cx:10+vm.bp[k1][0]*20,cy:10+vm.bp[k1][1]*20,r:5,fill:'green' }));
           append(t.$gc,$(SVGnode('circle'))
@@ -375,7 +372,8 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
             //  styles are calculated & 
             //  the browser picks up the starting position before animating
             var cnt=0;
-            pid2=setInterval(()=>{
+            pid2=setInterval(
+              ()=>{
                 path.getBoundingClientRect();
                 path.style.transition = path.style.WebkitTransition ='stroke-dashoffset 2s ease-in-out';
                 path.style.strokeDashoffset = cnt+=(length/5);
@@ -444,8 +442,10 @@ const test_thatImplementsTheSmallExampleAbove=
   //buff.send();
   return nCol*nRow;
 };
+
 const test_withLargerInput_usingGridLayout=
 (nCol=5,nRow=4,__,stuff,lkz=[],linearOrder,randomizedOrder)=>{
+ // default is a 5 col x 4 row grid of cells, the data is put in the global variable 'vm'
   bp=blueprint(nCol*nRow,nCol);
   cells={}; $.map(bp,(d,i)=> cells[i]=Cell(i));
   links={};  
@@ -549,21 +549,21 @@ const test_withLargerInput_usingGridLayout_randomLinking=
   },
 },
 */
-const test_gregory=(foo,__,sz)=>{ // reformat Gregory's stuff to the format I use
+const test_gregory=(foo,__,sz,nCol,nRow)=>{ // reformat Gregory's stuff to the format I use
   buff=$.map(foo,(v,__,op=v.op,d=v.payload)=>
     ({
       version:()=>({
         op:'version',
         payload: [ d ],
       }),
-      initTopology:(__,nCol,nRow)=>{
+      initTopology:(__)=>{
         sz=d.cols*d.rows;
+        nCol=d.cols;
+        nRow=d.rows;
+        nCols=d.cols;  // kludge
         return {
           op:'initTopology',
-          payload:[
-            nCol=d.cols,
-            nRow=d.rows,
-          ] 
+          payload:[ nCol, nRow ] 
         };
       },      
       cellAdd:()=>{ 
@@ -589,7 +589,7 @@ const test_gregory=(foo,__,sz)=>{ // reformat Gregory's stuff to the format I us
       }),
     })[op]()
   );
-  return sz;
+  return [nCol,nRow];
 };
 // ====================================================== sample implementation to test API
 /* 
@@ -631,8 +631,9 @@ var buff=[];
 buff.send=()=>{  };
 // ========== pick an input and run it ====================
 let pid;
-let runMe=(sz,msgs)=>{
-  tiles=setup(sz);
+let nCol,nRow;
+let runMe=(msgs,__,c_r)=>{
+  tiles=setup(nCol,nRow);
 //$.map(msgs,(o)=> doOp(o.op,o.payload) );  // animates
   let cnt= -1;
   pid=setInterval(
@@ -673,15 +674,15 @@ $(document).ready((__,cb)=>{
 
 $(document).ready((__,cb)=>{
   behavior();
-
-    //let sz=test_thatImplementsTheSmallExampleAbove(); runMe(sz,buff);  // buff is a global
-    //let sz=test_withLargerInput_usingGridLayout(6,5); runMe(sz,buff);   // 5,4
-    //let sz=test_withLargerInput_usingGridLayout_randomLinking(5,4); runMe(sz,buff); // 5 4
-    let sz=test_gregory(mes=foo); runMe(sz,buff); 
-
+  //  RRRR
+  //let sz=test_thatImplementsTheSmallExampleAbove(); runMe(sz,buff);  // buff is a global
+  //let sz=test_withLargerInput_usingGridLayout(6,5); runMe(sz,buff);   // 5,4
+  //let sz=test_withLargerInput_usingGridLayout_randomLinking(5,4); runMe(sz,buff); // 5 4
+  let c_r=test_gregory(mes=foo); 
+  nCol=c_r[0];
+  nRow=c_r[1];  
+  runMe(buff); 
 });
 // get rid of the bold red hiliting after a period of time - ie 5 sec
 let pid2=setInterval(()=> $('.l_').attr({ stroke:'silver',  'stroke-width':3 }),5000);
-
-
 </script>
