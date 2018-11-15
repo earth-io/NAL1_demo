@@ -579,7 +579,7 @@ data.reduce((arr, e, i) => ((e.prop1 == 'abc') && arr.push(i), arr), [])
 const collectData = [];
 var mes = '';
 
-const socket = io.connect('http://localhost:8060');
+const socket = io.connect('http://172.16.1.2:8060');
 socket.on('fullState',(msg)=>{ 
   mes = msg;  // this is the whole foo // we will change this later
   $('#messages'      ).append(msg); 
