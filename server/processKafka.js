@@ -11,11 +11,10 @@ gv.generateMessage({ op:"version", payload:1})
 kafkaServer = '172.16.1.2'
 //kafkaServer = '192.168.1.81'
 
-var topic = 'multicell-ui-raw-debug-2';
-topic = 'multicell-ui-raw-10-node_2';
+var topic = 'CellAgent';
+//topic = 'multicell-ui-raw-10-node_2';
+//topic = 'multicell-ui-10-nodes-mongo-1';
 
-topic = 'multicell-ui-10-nodes-mongo-1';
-topic = 'CellAgent';
 let brokers = kafkaServer + ':9092';
 
 //To improve performance to read from Kafka topic
