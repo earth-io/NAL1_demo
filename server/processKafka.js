@@ -193,18 +193,13 @@ function process_discover_msg(record, blueprint) {
 
     hops = record['body']['msg']['payload']['hops']
     //    console.log( "tree_name : ", tree_name, " my_cell_port_full_name : " , my_cell_port_full_name, " other_cell_port_full_name : ", other_cell_port_full_name)
-<<<<<<< HEAD
     try {
-    gv.discover( other_cell_name, other_cell_port_no, my_cell_name, my_cell_port_no, tree_name, hops)
+    gv.discover( other_cell_name, other_cell_port_no, my_cell_name, my_cell_port_no, tree_name, tree_port, hops)
     }
     catch( err) {
 	console.log( err)
     //    throw err;
     }         
-=======
-
-    gv.discover( other_cell_name, other_cell_port_no, my_cell_name, my_cell_port_no, tree_name, tree_port, hops)
->>>>>>> fb63a60baac6a6a1f74dcb32d8aa4dc1ac24c1b1
 }
 
 function process_discoverd_msg(record, blueprint) {

@@ -580,8 +580,9 @@ const collectData = [];
 var mes = '';
 
 
-host='192.168.1.65'
-host = '172.16.1.11'
+//host='192.168.1.65'
+//host = '172.16.1.11'
+host = document.location.hostname
 
 const socket = io.connect('http://'.concat( host, ':8060'));
 socket.on('fullState',(msg)=>{ 

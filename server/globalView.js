@@ -68,21 +68,31 @@ GlobalView = class  {
 	 throw "Invalid port reference";
     }     
     portsB[cellPortLabelB][cellPortLabelA][treeId]={ "hops":hops, "treePort":treePort};
+    console.log( "!!!GR discover treeId: ", treeId)
+    console.log( "!!!GR discover cellPortLabelB: ", cellPortLabelB)
+    console.log(  portsB[cellPortLabelB][cellPortLabelA])
     this.cellPorts[cellB] = portsB
   };
+
   discoverD( cellA, portA, cellB, portB, treeId) {
-console.log( "discoverD ", cellA, portA, cellB, portB, treeId);
+    console.log( "discoverD ", cellA, portA, cellB, portB, treeId);
     var cellPortLabelA = [cellA,portA].join('#');
     var cellPortLabelB = [cellB,portB].join('#');
     if(this.cellPorts==undefined){ console.log( 'undefined this.cellPorts)'); };
     var portsB = this.cellPorts[cellB]
-    if(portsB[cellPortLabelB]==undefined){ portsB[cellPortLabelB]={}; }    
+    if(portsB[cellPortLabelB]==undefined){ portsB[cellPortLabelB]={}; console.log( "!!!GR Race condition on " + cellPortLabelB);} 
     if(portsB[cellPortLabelB][cellPortLabelA]==undefined){ portsB[cellPortLabelB][cellPortLabelA]={}; }
     
 //  portsB[cellPortLabelB][cellPortLabelA][treeId]["active"] = "Y"
 //  cellB = 'C1'; portB = 1; cellA = 'C2'; portA = 3;
     var cellPortB = { CellPort:{ cellName:uiCellName(cellB), portNum:portB}};
     var cellPortA = { CellPort:{ cellName:uiCellName(cellA), portNum:portA}};
+
+   console.log( "GR??? discoverD treeId :", treeId)
+   console.log( "GR???", portsB)
+   console.log( portsB[cellPortLabelB][cellPortLabelA][treeId])
+   console.log( portsB[cellPortLabelB][cellPortLabelA][treeId]["treePort"])
+
     var payload = { CellPort:{ cellName:uiCellName(cellB), portNum:portB}, tree:{ treeName:uiCellName(treeId), 
         portNum: portsB[cellPortLabelB][cellPortLabelA][treeId]["treePort"]} };
 //  this.opHistory.append("['rtAdd', ('{}', {}), {}]".format(uiCellName(cellB),portB,uiCellName(treeId)))
