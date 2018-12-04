@@ -59,9 +59,13 @@ GlobalView = class  {
     var cellPortLabelB = [cellB,portB].join('#');
     if(this.cellPorts==undefined){ console.log( 'undefined this.cellPorts)'); }; // added oct 15 by jgs
     var portsB = this.cellPorts[cellB];
+    try {
     if(portsB[cellPortLabelB]==undefined){ portsB[cellPortLabelB]={}; }    
     if(portsB[cellPortLabelB][cellPortLabelA]==undefined){ portsB[cellPortLabelB][cellPortLabelA]={}; } 
-      
+    }
+    catch( err) {
+	 throw "Invalid port reference";
+    }     
     portsB[cellPortLabelB][cellPortLabelA][treeId]={ "hops":hops};
   };
   discoverD( cellA, portA, cellB, portB, treeId) {

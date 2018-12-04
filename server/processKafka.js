@@ -114,6 +114,9 @@ var server=http.createServer((req,res,__,sendFileContent)=>{ // request,response
   else if(req.url === "/index"){
     sendFileContent("index.html", "text/html");
   }
+  else if(req.url === "/test"){
+    sendFileContent("test.html", "text/html");
+  }
   else if(/^\/[a-zA-Z0-9\/\.\-]*.js$/.test(req.url.toString())){
 //  else if(/^.*\.js$/.test(req.url.toString())){
     sendFileContent(req.url.toString().substring(1), "text/javascript");
@@ -182,8 +185,13 @@ function process_discover_msg(record, blueprint) {
 
     hops = record['body']['msg']['payload']['hops']
     //    console.log( "tree_name : ", tree_name, " my_cell_port_full_name : " , my_cell_port_full_name, " other_cell_port_full_name : ", other_cell_port_full_name)
-
+    try {
     gv.discover( other_cell_name, other_cell_port_no, my_cell_name, my_cell_port_no, tree_name, hops)
+    }
+    catch( err) {
+	console.log( err)
+    //    throw err;
+    }         
 }
 
 function process_discoverd_msg(record, blueprint) {
