@@ -14,7 +14,7 @@ GlobalView = class  {
   getMessages() { return this.opHistory; }
   initTopology( nCells, rows, cols) {
         this.nCells = nCells;
-        this.generateMessage( { "op" : "version",      "payload":1});
+        this.generateMessage( { "op" : "version", "payload":2});
         this.generateMessage( { "op" : "initTopology", "payload" : { "num_cells" : nCells, "rows" : rows, "cols":cols}});
   };
   addCell( cell,location) {
@@ -53,7 +53,8 @@ GlobalView = class  {
     //self.generateMessage( json_data)
     }
   };
-  discover(cellA, portA, cellB, portB, treeId, hops) {
+  discover(cellA, portA, cellB, portB, treeId, treePort, hops) {
+  console.log( "discover ", cellA, portA, cellB, portB, treeId, treePort, hops);
   //if ( this.cellPorts==undefined ){ console.log('undefined this.cellPorts)'); }; stupid test zzz
     var cellPortLabelA = [cellA,portA].join('#');
     var cellPortLabelB = [cellB,portB].join('#');
@@ -66,9 +67,11 @@ GlobalView = class  {
     catch( err) {
 	 throw "Invalid port reference";
     }     
-    portsB[cellPortLabelB][cellPortLabelA][treeId]={ "hops":hops};
+    portsB[cellPortLabelB][cellPortLabelA][treeId]={ "hops":hops, "treePort":treePort};
+    this.cellPorts[cellB] = portsB
   };
   discoverD( cellA, portA, cellB, portB, treeId) {
+console.log( "discoverD ", cellA, portA, cellB, portB, treeId);
     var cellPortLabelA = [cellA,portA].join('#');
     var cellPortLabelB = [cellB,portB].join('#');
     if(this.cellPorts==undefined){ console.log( 'undefined this.cellPorts)'); };
@@ -80,7 +83,8 @@ GlobalView = class  {
 //  cellB = 'C1'; portB = 1; cellA = 'C2'; portA = 3;
     var cellPortB = { CellPort:{ cellName:uiCellName(cellB), portNum:portB}};
     var cellPortA = { CellPort:{ cellName:uiCellName(cellA), portNum:portA}};
-    var payload = { CellPort:{ cellName:uiCellName(cellB), portNum:portB}, tree:{ treeName:uiCellName(treeId) } };
+    var payload = { CellPort:{ cellName:uiCellName(cellB), portNum:portB}, tree:{ treeName:uiCellName(treeId), 
+        portNum: portsB[cellPortLabelB][cellPortLabelA][treeId]["treePort"]} };
 //  this.opHistory.append("['rtAdd', ('{}', {}), {}]".format(uiCellName(cellB),portB,uiCellName(treeId)))
     this.generateMessage({ op:"rtAdd", payload:payload })
   };   

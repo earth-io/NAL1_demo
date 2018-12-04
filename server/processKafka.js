@@ -4,12 +4,16 @@ var http       = require('http'); // http.createServer; listens on a port
 var fs         = require('fs');
 const socketIo = require("socket.io");  
 
+var Kafka = require('node-rdkafka');
+
 var { GlobalView } = require('./globalView.js');
 var gv = new GlobalView;
 gv.generateMessage({ op:"version", payload:1})
 
 kafkaServer = '172.16.1.2'
+//kafkaServer = '172.16.1.11'
 //kafkaServer = '192.168.1.81'
+//kafkaServer = '192.168.1.65'
 
 var topic = 'CellAgent';
 //topic = 'multicell-ui-raw-10-node_2';
@@ -20,7 +24,6 @@ let brokers = kafkaServer + ':9092';
 //To improve performance to read from Kafka topic
 rv = Math.floor(Math.random() * 10)
 
-var Kafka = require('node-rdkafka');
 const consumer = new Kafka.KafkaConsumer(
     {
         'group.id': 'my-app-name_' + rv,
@@ -63,24 +66,27 @@ consumer
                    date.getMinutes(),
                    date.getSeconds(),
                 ];
-                console.log(datevalues)
+               //// console.log(datevalues)
                 // Output the actual message contents
                 var obj = JSON.parse(data.value.toString());
-              console.log(data.value.toString());
+//              console.log(data.value.toString());
 //                payload = obj.payload
                 payload = obj
 //                console.log( JSON.stringify(payload) + "")
 
 //              console.log( data.value.toString())
-                //console.log( obj.header);
+//                console.log( obj.header);
+//                console.log( payload.header.function);
                 if ( payload.header.function == 'MAIN' 
                         && payload.body.schema_version == '0.1' ) {
+			console.log(data.value.toString());
                     gv = new GlobalView;
 //                    gv.generateMessage({ op:"version", payload:1})
                     blueprint = process_init_topology(payload, blueprint)
                 }    
                 else if ( payload.header.function == 'initialize' 
                         && ( payload.header.format == 'border_cell_start' || payload.header.format == 'interior_cell_start')) {
+		    console.log(data.value.toString());
                     cellLocation[payload["body"]["cell_number"]] = payload.body.location
                 }    
                 else if (payload.header.function == 'process_hello_msg') {
@@ -88,6 +94,7 @@ consumer
                     process_hello_msg( payload, cellLocation, blueprint); 
                 } else if ( payload.header.function == 'process_discover_msg') {
                                 // console.log( record["header"]["function"])
+console.log(data.value.toString());
                     process_discover_msg(payload, blueprint)
                 } else if ( payload.header.function == 'process_discoverd_msg') {
                                 // console.log( record["header"]["function"])
@@ -182,9 +189,11 @@ function process_discover_msg(record, blueprint) {
 
     tree_uuid = record['body']['msg']['payload']['tree_id']['uuid']['uuid']
     tree_name = record['body']['msg']['payload']['tree_id']['name']
+    tree_port = record['body']['msg']['payload']['path']['port_number']['port_no'] 
 
     hops = record['body']['msg']['payload']['hops']
     //    console.log( "tree_name : ", tree_name, " my_cell_port_full_name : " , my_cell_port_full_name, " other_cell_port_full_name : ", other_cell_port_full_name)
+<<<<<<< HEAD
     try {
     gv.discover( other_cell_name, other_cell_port_no, my_cell_name, my_cell_port_no, tree_name, hops)
     }
@@ -192,6 +201,10 @@ function process_discover_msg(record, blueprint) {
 	console.log( err)
     //    throw err;
     }         
+=======
+
+    gv.discover( other_cell_name, other_cell_port_no, my_cell_name, my_cell_port_no, tree_name, tree_port, hops)
+>>>>>>> fb63a60baac6a6a1f74dcb32d8aa4dc1ac24c1b1
 }
 
 function process_discoverd_msg(record, blueprint) {
