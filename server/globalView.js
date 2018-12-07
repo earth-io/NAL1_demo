@@ -79,10 +79,10 @@ GlobalView = class  {
     var cellPortLabelA = [cellA,portA].join('#');
     var cellPortLabelB = [cellB,portB].join('#');
     if(this.cellPorts==undefined){ console.log( 'undefined this.cellPorts)'); };
-    if( this.cellPorts[cellB]) === undefined {  this.cellPorts[cellB] = {}; }
+    if( this.cellPorts[cellB] === undefined) {  this.cellPorts[cellB] = {}; }
     var portsB = this.cellPorts[cellB]
-    if(portsB[cellPortLabelB]===undefined){ portsB[cellPortLabelB]={}; console.log( "!!!GR Race condition on " + cellPortLabelB);} 
-    if(portsB[cellPortLabelB][cellPortLabelA]===undefined){ portsB[cellPortLabelB][cellPortLabelA]={}; }
+    if(portsB[cellPortLabelB]==undefined){ portsB[cellPortLabelB]={}; console.log( "!!!GR Race condition on " + cellPortLabelB);} 
+    if(portsB[cellPortLabelB][cellPortLabelA]==undefined){ portsB[cellPortLabelB][cellPortLabelA]={}; }
     this.cellPorts[cellB]
  
 //  portsB[cellPortLabelB][cellPortLabelA][treeId]["active"] = "Y"
