@@ -1,0 +1,125 @@
+--- Routing table ---
+
+To route msgs to destination cells, each cell has a router that contains a hash object.
+The key is the cell id of the destination, the value is a list of ports 
+that the cell can send the msg out on in order to reach the destination cell.
+We will call the hash object the router table.
+
+The keys of a cell's router table represent the destination cells it knows about, and can forward to.
+
+When a cell in connected to another cell with a new link,
+it sends on the port of the new link this list of these keys.
+
+The receiving cell
+1) filters this information, 
+2) for each of the destination cells the receiving cell does not know about
+  2a) puts the destination cell id in its router table, along with the receiving port,
+  2b) sends this destination cell out on the other ports (ie all except the receiving port)
+
+For our API,  the server sends a rtAdd msg when a cell adds to its routing table.
+The allows the client to construct its View Model.
+
+====== API ======
+
+ordering requirement
+  links can only be added if their cells exist
+  cells cannot be deleted if there are links attached
+  additions to routing table and only be made a cell and link that already exit
+
+cell port numbering: 
+  0 is the 'self' port
+  there can be 4 or 8 'std' ports,  their angular positioning is not important
+  Alan attaches cables in port number order, so the first cable that gets attached goes 'into' port 1
+
+cellID,treeID,portNum are integers
+
+msg's are arrays, containing  these ‘atomic’ pieces of information:
+  { op:'version',  payload: numeric }
+  { op:'tiling',   payload:{ nCols: ,nRows: } }
+  { op:'linkAdd',  payload:[{ cellID: int ,portNum: int },{ cellID: int ,portNum: int }] }
+  { op:'cellsDel', payload:[cellID1,..] }
+  { op:'linksDel', payload:[linkID1,..] }
+  { op:'rtAdd',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }  // routing info
+  { op:'rtDel',    payload:{ port:{ cellID: int ,portNum: int }, treeIDs:[int,..] } }
+  
+Gregory Oct 01 2018
+{"messageId": 8, "payload": {"row": 3, "col": 1, "cellName": "8"}, "op": "cellAdd"},
+{"messageId": 9, "payload": [{"CellPort": {"portNum": 1, "cellName": "4"}}, {"CellPort": {"portNum": "1", "cellName": "3"}}], "op": "linkAdd"},
+{"messageId": 10, "payload": {"tree": {"treeName": "4"}, "CellPort": {"portNum": "1", "cellName": "3"}}, "op": "rtAdd"},
+
+
+the graph used to make the example msg below:
+   
+   0    1
+   o----o
+   |    |
+   o----o
+   2    3
+   
+ports naming convention for MMMM
+
+       1    
+       |
+  2 -- x -- 0
+       |
+       3
+              
+MMMM:  if we connect links in order: [0,1],[1,3],[2,3],[0,2]
+
+connect with links [0,1]
+cells={
+  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,         '1':[0] } },
+  '1':{ ports:[     X,     X, '0_1',     X ], router:{ table:{ '1':  X, '0':[2]         } },
+  '2':{ ports:[     X,     X,     X,     X ], router:{ table:{ '2':  X,                 } },
+  '3':{ ports:[     X,     X,     X,     X ], router:{ table:{ '3':  X,                 } },
+}
+
+connect with links [0,1],[1,3]
+cells={
+  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,          '1':[0], 3:[0] } },
+  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          3:[3] } },
+  '2':{ ports:[     X,     X,     X,     X ], router:{ table:{ '2':  X,                         } },
+  '3':{ ports:[     X, '1_3',     X,     X ], router:{ table:{ '3':  X, '0':[1], '1':[1]        } },
+}
+
+connect with links [0,1],[1,3],[2,3],
+cells={
+  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,          '1':[0], '2':[0], 3:[0] } },
+  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          '2':[3], 3:[3] } },
+  '2':{ ports:[ '2_3',     X,     X,     X ], router:{ table:{ '2':  X, '0':[0], '1':[0],          3:[0] } },
+  '3':{ ports:[     X, '1_3', '2_3',     X ], router:{ table:{ '3':  X, '0':[1], '1':[1], '2':[2],       } },
+}
+
+connect with links [0,1],[1,3],[2,3],[0,2]     // n.c. to routing table
+cells={
+  '0':{ ports:[ '0_1',     X,     X, '0_2' ], router:{ table:{ '0':  X,          '1':[0], '2':[0], 3:[0] } },
+  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          '2':[3], 3:[3] } },
+  '2':{ ports:[ '2_3', '0_2',     X,     X ], router:{ table:{ '2':  X, '0':[0], '1':[0],          3:[0] } },
+  '3':{ ports:[     X, '1_3', '2_3',     X ], router:{ table:{ '3':  X, '0':[1], '1':[1], '2':[2],       } },
+}
+
+socket.send(JSON.stringify( // array of atomic information
+  [  
+    { op:'version',  payload:1 },
+    { op:'layout' ,  payload:{ nCols:2, nRows:2 } },
+    { op:'cellAdd',  payload:[0,0,0]}, { op:'rtAdd', payload:{ port:{ cellID:0 ,portNum:0 }, treeIDs:[0] } },
+    { op:'cellAdd',  payload:[1,0,1]}, { op:'rtAdd', payload:{ port:{ cellID:1 ,portNum:0 }, treeIDs:[1] } },
+    { op:'cellAdd',  payload:[2,1,0]}, { op:'rtAdd', payload:{ port:{ cellID:2 ,portNum:0 }, treeIDs:[2] } },
+    { op:'cellAdd',  payload:[3,1,1]}, { op:'rtAdd', payload:{ port:{ cellID:3 ,portNum:0 }, treeIDs:[3] } },
+    
+    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:1 },{ cellID:1 ,portNum:1 }] },
+    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:1 },{ cellID:1 ,portNum:1 }] },
+      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[1] }   },
+      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 1 }, treeIDs:[0] }   },
+    { op:'linkAdd',  payload:[{ cellID:1 ,portNum:2},{ cellID:3 ,portNum:1 }]  },
+      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 1 }, treeIDs:[3  ] } },
+      { op:'rtAdd',  payload:{ port:{ cellID: 3 ,portNum: 1 }, treeIDs:[1,0] } },
+      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[3  ] } },
+    { op:'linkAdd',  payload:[{ cellID:2 ,portNum:1 },{ cellID:3 ,portNum:2 }] },
+      { op:'rtAdd',  payload:{ port:{ cellID: 2 ,portNum: 1 }, treeIDs:[3,1,0] } },
+      { op:'rtAdd',  payload:{ port:{ cellID: 3 ,portNum: 2 }, treeIDs:[2    ] } },
+      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 2 }, treeIDs:[2    ] } },
+      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[2    ] } },    
+    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:2 },{ cellID:2 ,portNum:2 }] } // no change to routing tables 
+  ]
+);
