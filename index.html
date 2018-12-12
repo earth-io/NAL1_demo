@@ -607,6 +607,7 @@ let runMe=(msgs,__,c_r)=>{
   tiles=setup(nCol,nRow);
 //$.map(msgs,(o)=> doOp(o.op,o.payload) );  // animates
   let cnt= -1;
+  const animationDealy = 20
   pid=setInterval(
     ()=>{ 
       cnt++; 
@@ -615,7 +616,7 @@ let runMe=(msgs,__,c_r)=>{
       : doOp(msgs[cnt].op,msgs[cnt].payload) // process msg
       ; 
     },
-    200
+    animationDealy 
   ); 
 };
 

@@ -79,10 +79,12 @@ GlobalView = class  {
     var cellPortLabelA = [cellA,portA].join('#');
     var cellPortLabelB = [cellB,portB].join('#');
     if(this.cellPorts==undefined){ console.log( 'undefined this.cellPorts)'); };
+    if( this.cellPorts[cellB] === undefined) {  this.cellPorts[cellB] = {}; }
     var portsB = this.cellPorts[cellB]
     if(portsB[cellPortLabelB]==undefined){ portsB[cellPortLabelB]={}; console.log( "!!!GR Race condition on " + cellPortLabelB);} 
     if(portsB[cellPortLabelB][cellPortLabelA]==undefined){ portsB[cellPortLabelB][cellPortLabelA]={}; }
-    
+    this.cellPorts[cellB]
+ 
 //  portsB[cellPortLabelB][cellPortLabelA][treeId]["active"] = "Y"
 //  cellB = 'C1'; portB = 1; cellA = 'C2'; portA = 3;
     var cellPortB = { CellPort:{ cellName:uiCellName(cellB), portNum:portB}};
