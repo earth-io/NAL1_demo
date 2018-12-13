@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
 <script src='./lib/jquery-1.12.1.js'></script>
-script src="/socket.io/socket.io.js"
+ script src="/socket.io/socket.io.js"> /script>
  script src='./experiment/gregoryDataNov052018.js'> /script>
  script src='./experiment/gregoryDataOct012018.js'> /script>
-<script src='./experiment/gregoryData3nodes_20181112_1.js'></script>
+ script src='./experiment/gregoryData3nodes_20181112_1.js'> /script>
+<script src='./experiment/gregory_10_nodes_20181207.js'></script>
 <body>
 <div id='display'></div>
 John Slater Sept 25-Oct 03 2018 + Greogry Nov 06 2018
@@ -88,82 +89,7 @@ Gregory Oct 01 2018
 {"messageId": 10, "payload": {"tree": {"treeName": "4"}, "CellPort": {"portNum": "1", "cellName": "3"}}, "op": "rtAdd"},
 
 
-the graph used to make the example msg below:
-   
-   0    1
-   o----o
-   |    |
-   o----o
-   2    3
-   
-ports naming convention for MMMM
 
-       1    
-       |
-  2 -- x -- 0
-       |
-       3
-              
-MMMM:  if we connect links in order: [0,1],[1,3],[2,3],[0,2]
-
-connect with links [0,1]
-cells={
-  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,         '1':[0] } },
-  '1':{ ports:[     X,     X, '0_1',     X ], router:{ table:{ '1':  X, '0':[2]         } },
-  '2':{ ports:[     X,     X,     X,     X ], router:{ table:{ '2':  X,                 } },
-  '3':{ ports:[     X,     X,     X,     X ], router:{ table:{ '3':  X,                 } },
-}
-
-connect with links [0,1],[1,3]
-cells={
-  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,          '1':[0], 3:[0] } },
-  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          3:[3] } },
-  '2':{ ports:[     X,     X,     X,     X ], router:{ table:{ '2':  X,                         } },
-  '3':{ ports:[     X, '1_3',     X,     X ], router:{ table:{ '3':  X, '0':[1], '1':[1]        } },
-}
-
-connect with links [0,1],[1,3],[2,3],
-cells={
-  '0':{ ports:[ '0_1',     X,     X,     X ], router:{ table:{ '0':  X,          '1':[0], '2':[0], 3:[0] } },
-  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          '2':[3], 3:[3] } },
-  '2':{ ports:[ '2_3',     X,     X,     X ], router:{ table:{ '2':  X, '0':[0], '1':[0],          3:[0] } },
-  '3':{ ports:[     X, '1_3', '2_3',     X ], router:{ table:{ '3':  X, '0':[1], '1':[1], '2':[2],       } },
-}
-
-connect with links [0,1],[1,3],[2,3],[0,2]     // n.c. to routing table
-cells={
-  '0':{ ports:[ '0_1',     X,     X, '0_2' ], router:{ table:{ '0':  X,          '1':[0], '2':[0], 3:[0] } },
-  '1':{ ports:[     X,     X, '0_1', '1_3' ], router:{ table:{ '1':  X, '0':[2],          '2':[3], 3:[3] } },
-  '2':{ ports:[ '2_3', '0_2',     X,     X ], router:{ table:{ '2':  X, '0':[0], '1':[0],          3:[0] } },
-  '3':{ ports:[     X, '1_3', '2_3',     X ], router:{ table:{ '3':  X, '0':[1], '1':[1], '2':[2],       } },
-}
-</pre>
-<pre>
-socket.send(JSON.stringify( // array of atomic information
-  [  
-    { op:'version',  payload:1 },
-    { op:'layout' ,  payload:{ nCols:2, nRows:2 } },
-    { op:'cellAdd',  payload:[0,0,0]}, { op:'rtAdd', payload:{ port:{ cellID:0 ,portNum:0 }, treeIDs:[0] } },
-    { op:'cellAdd',  payload:[1,0,1]}, { op:'rtAdd', payload:{ port:{ cellID:1 ,portNum:0 }, treeIDs:[1] } },
-    { op:'cellAdd',  payload:[2,1,0]}, { op:'rtAdd', payload:{ port:{ cellID:2 ,portNum:0 }, treeIDs:[2] } },
-    { op:'cellAdd',  payload:[3,1,1]}, { op:'rtAdd', payload:{ port:{ cellID:3 ,portNum:0 }, treeIDs:[3] } },
-    
-    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:1 },{ cellID:1 ,portNum:1 }] },
-    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:1 },{ cellID:1 ,portNum:1 }] },
-      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[1] }   },
-      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 1 }, treeIDs:[0] }   },
-    { op:'linkAdd',  payload:[{ cellID:1 ,portNum:2},{ cellID:3 ,portNum:1 }]  },
-      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 1 }, treeIDs:[3  ] } },
-      { op:'rtAdd',  payload:{ port:{ cellID: 3 ,portNum: 1 }, treeIDs:[1,0] } },
-      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[3  ] } },
-    { op:'linkAdd',  payload:[{ cellID:2 ,portNum:1 },{ cellID:3 ,portNum:2 }] },
-      { op:'rtAdd',  payload:{ port:{ cellID: 2 ,portNum: 1 }, treeIDs:[3,1,0] } },
-      { op:'rtAdd',  payload:{ port:{ cellID: 3 ,portNum: 2 }, treeIDs:[2    ] } },
-      { op:'rtAdd',  payload:{ port:{ cellID: 1 ,portNum: 2 }, treeIDs:[2    ] } },
-      { op:'rtAdd',  payload:{ port:{ cellID: 0 ,portNum: 1 }, treeIDs:[2    ] } },    
-    { op:'linkAdd',  payload:[{ cellID:0 ,portNum:2 },{ cellID:2 ,portNum:2 }] } // no change to routing tables 
-  ]
-);
 </pre>
 </body>
 <script> // keep everything in one file for now so people can run by just cutting&pasting src code
@@ -187,7 +113,6 @@ const quadraticArc=(p,x1,y1,x2,y2,clr,wid,__,xm=(x1+x2)/2,ym=(y1+y2)/2,dx=x2-x1,
     "stroke-width":wid
   }))
 ;
-
 var Tag=(name,s)=> '<'+name+'>'+s+'</'+name+'>';
 </script>
 <script>
@@ -335,8 +260,13 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
           })
     }); 
   }
-  if(op=='rtAdd'){  // d ::= { port:{ cellID: int ,portNum: int }, treeIDs:[int,..] }  // routing info
-    $.map(d.treeIDs,(rootID,__,k1=d.port.cellID,k2,row,col)=>{
+  if(op=='rtAdd'){ 
+    // old d ::= { port:{ cellID: int ,portNum: int }, treeIDs:[int,..] }  // routing info
+    // new d ::= { port:{ cellID: int ,portNum: int }, treeIDs:{ treeID:d.tree.treeName, portNum: d.tree.portNum} }
+    //$.map(d.treeIDs,(rootID,__,k1=d.port.cellID,k2)=>{
+      let k1=d.port.cellID;
+      let rootID=d.treeIDs.treeID;
+      let portID=d.treeIDs.portNum
       if(vm.links[k1]==undefined || vm.links[k1][d.port.portNum]==undefined){ return; } // we are at the root
       k2=vm.links[k1][d.port.portNum][0];
       $('.bkgrnd'   ).attr({ fill:'blue' });
@@ -357,7 +287,7 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
              10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'black',5).attr({ class:'b_ rt_'+k1 }); 
             quadraticArc(t.$gl,
              10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
-             10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'orange',4).attr({ class:'b_ rt_'+k1 }); 
+             10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,['lime','violet','yellow','orange'][portID-1],4).attr({ class:'b_ rt_'+k1 }); 
             const arc3=quadraticArc(t.$gl,
              10+vm.bp[k1][0]*20,10+vm.bp[k1][1]*20,
              10+vm.bp[k2][0]*20,10+vm.bp[k2][1]*20,'black',4).attr({ class:'b_ rt_'+k1 }); 
@@ -366,7 +296,7 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
             path.style.transition = path.style.WebkitTransition ='none';
             var length = 30; // path.getTotalLength();
             
-            path.style.strokeDasharray = 6 + ' ' + 3;
+            path.style.strokeDasharray = 2 + ' ' + 7;
             path.style.strokeDashoffset = 9;
             // Trigger a layout so 
             //  styles are calculated & 
@@ -386,7 +316,7 @@ const doOp=(op,d,__,cellName,k,row,col)=>{
           }
         }
       });
-    });
+  //});  // map
   }
 };
 // ============================================================= 
@@ -514,41 +444,7 @@ const test_withLargerInput_usingGridLayout_randomLinking=
   }
   return nCol*nRow;
 };
-//----- from Gregory Nov 05 2018
-/*
 
-{
-  "messageId":0
-  "op":"version",
-  "payload":1
-},
-{
-  "messageId":1,
-  "op":"initTopology",
-  "payload":{"num_cells":10,"rows":2,"cols":5}
-},
-{
-  "messageId": 8, 
-  "op": "cellAdd",
-  "payload": {"row":3, "col":1, "cellName":"8"}, 
-},
-{
-  "messageId": 9, 
-  "op": "linkAdd",
-  "payload": [
-    {"CellPort": {"portNum":"1", "cellName":"4"}}, 
-    {"CellPort": {"portNum":"1", "cellName":"3"}}
-  ], 
-},
-{
-  "messageId": 10,
-  "op": "rtAdd", 
-  "payload": {
-    "tree":{"treeName":"4" }, 
-     "CellPort":{"portNum":"1", "cellName":"3" }
-  },
-},
-*/
 const test_gregory=(foo,__,sz,nCol,nRow)=>{ // reformat Gregory's stuff to the format I use
   buff=$.map(foo,(v,__,op=v.op,d=v.payload)=>
     ({
@@ -583,8 +479,8 @@ const test_gregory=(foo,__,sz,nCol,nRow)=>{ // reformat Gregory's stuff to the f
       rtAdd  :()=> ({ 
         op:'rtAdd'  , 
         payload:{ 
-          port:{ cellID: d.CellPort.cellName ,portNum: d.CellPort.portNum }, 
-          treeIDs:[d.tree.treeName] 
+          port:{ cellID:d.CellPort.cellName ,portNum:d.CellPort.portNum }, 
+          treeIDs:{ treeID:d.tree.treeName, portNum:d.tree.portNum } 
         }
       }),
     })[op]()
@@ -611,17 +507,16 @@ data.reduce((arr, e, i) => ((e.prop1 == 'abc') && arr.push(i), arr), [])
 
 //  need to run node
 const collectData = [];
-var mes = '';
+//host='localhost';
+//host='192.168.1.65'
+//host = '172.16.1.11'
+host = document.location.hostname
 /*
-const socket = io.connect('http://localhost:8060');
-socket.on('fullState',(msg)=>{ 
-  mes = msg;  // this is the whole foo // we will change this later
-  $('#messages'      ).append(msg); 
-  runMe(msg);   // TBD zzzz add a sz or something  
-    });
-socket.on('to_text'         ,(msg)=>{ $('#messages'      ).append(msg); });  // ????
+const socket = io.connect('http://'.concat( host, ':8060'));
+socket.on('fullState',(msg)=>{  $('#messages').append(msg); run(JSON.parse(msg)); });
+socket.on('to_text'  ,(msg)=>{ $('#messages').append(msg); });  // ????
 */
-//mes=foo;
+
 
 
 const range=(n)=> [...Array(n).keys()];
@@ -630,6 +525,7 @@ var buff=[];
 //buff.send=()=>{ socket.send(JSON.stringify(buff)); buff.length=0; };
 buff.send=()=>{  };
 // ========== pick an input and run it ====================
+let animationDelay = 20;
 let pid;
 let nCol,nRow;
 let runMe=(msgs,__,c_r)=>{
@@ -644,9 +540,22 @@ let runMe=(msgs,__,c_r)=>{
       : doOp(msgs[cnt].op,msgs[cnt].payload) // process msg
       ; 
     },
-    200
+    animationDelay
   ); 
 };
+
+let run=(mes)=>{
+  behavior();
+  //  RRRR
+  //let sz=test_thatImplementsTheSmallExampleAbove(); runMe(sz,buff);  // buff is a global
+  //let sz=test_withLargerInput_usingGridLayout(6,5); runMe(sz,buff);   // 5,4
+  //let sz=test_withLargerInput_usingGridLayout_randomLinking(5,4); runMe(sz,buff); // 5 4
+  let c_r=test_gregory(mes); 
+  nCol=c_r[0];
+  nRow=c_r[1];  
+  runMe(buff);
+};
+
 /*
 // put in util when done
 // stackoverflow.com/questions/14521108/dynamically-load-js-inside-js
@@ -673,15 +582,7 @@ $(document).ready((__,cb)=>{
 */
 
 $(document).ready((__,cb)=>{
-  behavior();
-  //  RRRR
-  //let sz=test_thatImplementsTheSmallExampleAbove(); runMe(sz,buff);  // buff is a global
-  //let sz=test_withLargerInput_usingGridLayout(6,5); runMe(sz,buff);   // 5,4
-  //let sz=test_withLargerInput_usingGridLayout_randomLinking(5,4); runMe(sz,buff); // 5 4
-  let c_r=test_gregory(mes=foo); 
-  nCol=c_r[0];
-  nRow=c_r[1];  
-  runMe(buff); 
+  run(foo);
 });
 // get rid of the bold red hiliting after a period of time - ie 5 sec
 let pid2=setInterval(()=> $('.l_').attr({ stroke:'silver',  'stroke-width':3 }),5000);
