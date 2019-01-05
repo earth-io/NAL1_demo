@@ -14,6 +14,7 @@ kafkaServer = '172.16.1.2'
 //kafkaServer = '172.16.1.11'
 //kafkaServer = '192.168.1.81'
 //kafkaServer = '192.168.1.65'
+//kafkaServer = '192.168.100.198'
 
 var topic = 'CellAgent';
 //topic = 'multicell-ui-raw-10-node_2';
@@ -187,8 +188,8 @@ function process_discover_msg(record, blueprint) {
     other_cell_name = other_cell_port_full_name.split('#')[0]
     other_cell_port_no = other_cell_port_full_name.split('#')[1]
 
-    tree_uuid = record['body']['msg']['payload']['tree_id']['uuid']['uuid']
-    tree_name = record['body']['msg']['payload']['tree_id']['name']
+    tree_uuid = record['body']['msg']['payload']['port_tree_id']['uuid']['uuid']
+    tree_name = record['body']['msg']['payload']['port_tree_id']['name']
     tree_port = record['body']['msg']['payload']['path']['port_number']['port_no'] 
 
     hops = record['body']['msg']['payload']['hops']
@@ -210,8 +211,8 @@ function process_discoverd_msg(record, blueprint) {
     receiver_cell_port_full_name = blueprint[sender_cell_port_full_name]
     receiver_cell_name = receiver_cell_port_full_name.split('#')[0]
     receiver_cell_port_no = receiver_cell_port_full_name.split('#')[1]
-    tree_uuid = record['body']['msg']['payload']['tree_id']['uuid']['uuid']
-    tree_name = record['body']['msg']['payload']['tree_id']['name']
+    tree_uuid = record['body']['msg']['payload']['port_tree_id']['uuid']['uuid']
+    tree_name = record['body']['msg']['payload']['port_tree_id']['name']
     if ( tree_name == 'C:2') {
         console.log("DISCOVERD", "tree_name : ", tree_name, " receiver_cell_port_full_name : ", receiver_cell_port_full_name,
               " sender_cell_port_full_name : ", sender_cell_port_full_name)
